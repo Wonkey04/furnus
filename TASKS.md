@@ -11,13 +11,13 @@ Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final,
 - [x] `.env.example` y `.gitignore`
 
 ## 2. Kernel (Python)
-- [ ] Servicio local que recibe `{script, parametros, salidas}` por JSON
-- [ ] Análisis estático del script (lista de imports permitidos, sin `os`/`subprocess`/`socket`/`open`)
-- [ ] Ejecución en subproceso con timeout y límite de memoria, sin red
-- [ ] Módulo `furnus` con `param()` y `validar()`
-- [ ] Salidas: malla GLB, medidas (caja, volumen, área), validez con motivos, parámetros declarados, error con traceback legible
-- [ ] Exportación a STEP
-- [ ] Tests: script válido, script con error, script con import prohibido, timeout, pieza inválida
+- [x] Servicio local que recibe `{script, parametros, salidas}` por JSON
+- [x] Análisis estático del script (lista de imports permitidos, sin `os`/`subprocess`/`socket`/`open`)
+- [x] Ejecución en subproceso con timeout y límite de memoria, sin red
+- [x] Módulo `furnus` con `param()` y `validar()`
+- [x] Salidas: malla GLB, medidas (caja, volumen, área), validez con motivos, parámetros declarados, error con traceback legible
+- [x] Exportación a STEP
+- [x] Tests: script válido, script con error, script con import prohibido, timeout, pieza inválida
 
 ## 3. Dominio y aplicación (TypeScript)
 - [ ] `Pieza`, `Revision`, `Parametro` en `packages/core`

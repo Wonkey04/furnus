@@ -1,0 +1,52 @@
+"""Análisis estático del script antes de correrlo. No es seguridad real (ver ARCHITECTURE.md)."""
+from __future__ import annotations
+
+import ast
+from dataclasses import dataclass
+
+IMPORTS_PERMITIDOS = {"build123d", "math", "furnus"}
+NOMBRES_PROHIBIDOS = {
+    "os", "sys", "subprocess", "socket", "open", "exec", "eval", "compile", "input", "breakpoint",
+    "__import__", "globals", "locals", "vars", "getattr", "setattr", "delattr", "memoryview",
+    "importlib", "ctypes", "shutil", "pathlib", "builtins",
+}
+
+
+@dataclass
+class Problema:
+    linea: int
+    mensaje: str
+
+    def texto(self) -> str:
+        return f"línea {self.linea}: {self.mensaje}"
+
+
+def analizar(script: str) -> list[Problema]:
+    try:
+        arbol = ast.parse(script)
+    except SyntaxError as e:
+        return [Problema(e.lineno or 1, f"Error de sintaxis: {e.msg}.")]
+    problemas: list[Problema] = []
+    for nodo in ast.walk(arbol):
+        linea = getattr(nodo, "lineno", 0)
+        if isinstance(nodo, ast.Import):
+            for a in nodo.names:
+                raiz = a.name.split(".")[0]
+                if raiz not in IMPORTS_PERMITIDOS:
+                    problemas.append(Problema(linea, _import(raiz)))
+        elif isinstance(nodo, ast.ImportFrom):
+            raiz = (nodo.module or "").split(".")[0]
+            if nodo.level or raiz not in IMPORTS_PERMITIDOS:
+                problemas.append(Problema(linea, _import(raiz or ".")))
+        elif isinstance(nodo, ast.Name) and nodo.id in NOMBRES_PROHIBIDOS:
+            problemas.append(Problema(linea, f"«{nodo.id}» no está permitido en el sandbox."))
+        elif isinstance(nodo, ast.Attribute) and (
+            nodo.attr.startswith("__") or nodo.attr in NOMBRES_PROHIBIDOS
+        ):
+            problemas.append(Problema(linea, f"El acceso a «.{nodo.attr}» no está permitido en el sandbox."))
+    return problemas
+
+
+def _import(raiz: str) -> str:
+    permitidos = ", ".join(sorted(IMPORTS_PERMITIDOS))
+    return f"No se puede importar «{raiz}». Solo se permiten: {permitidos}."

@@ -1,0 +1,132 @@
+"""Se ejecuta DENTRO del subproceso: corre el script y escribe resultado.json.
+
+Uso: python -I runner.py <pedido.json> <directorio_salida>
+"""
+from __future__ import annotations
+
+import builtins
+import json
+import sys
+import traceback
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+PERMITIDOS = {"build123d", "math", "furnus"}
+
+
+def _importar(nombre, globales=None, locales=None, fromlist=(), level=0):
+    if level or nombre.split(".")[0] not in PERMITIDOS:
+        raise ImportError(f"No se puede importar «{nombre}» en el sandbox.")
+    return builtins.__import__(nombre, globales, locales, fromlist, level)
+
+
+def _builtins_seguros():
+    prohibidos = {
+        "open", "exec", "eval", "compile", "input", "breakpoint", "globals", "locals", "vars",
+        "getattr", "setattr", "delattr", "memoryview", "__import__",
+    }
+    seguros = {k: v for k, v in vars(builtins).items() if k not in prohibidos}
+    seguros["__import__"] = _importar
+    return seguros
+
+
+def _bloquear_red() -> None:
+    import socket
+
+    def _sin_red(*a, **k):
+        raise PermissionError("El sandbox no tiene acceso a la red.")
+
+    socket.socket = _sin_red  # type: ignore[assignment]
+    socket.create_connection = _sin_red  # type: ignore[assignment]
+    socket.getaddrinfo = _sin_red  # type: ignore[assignment]
+
+
+def _traceback_legible(exc: BaseException, script: str) -> tuple[str, int | None]:
+    lineas = script.splitlines()
+    tb = traceback.extract_tb(exc.__traceback__)
+    del_script = [f for f in tb if f.filename == "<script>"]
+    linea = del_script[-1].lineno if del_script else None
+    partes = []
+    for f in del_script:
+        codigo = lineas[f.lineno - 1].strip() if f.lineno and f.lineno <= len(lineas) else ""
+        partes.append(f"  línea {f.lineno}: {codigo}")
+    mensaje = f"{type(exc).__name__}: {exc}"
+    texto = "Traceback (en tu script):\n" + "\n".join(partes) + "\n" + mensaje if partes else mensaje
+    return texto, linea
+
+
+def main() -> int:
+    pedido = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    salida = Path(sys.argv[2])
+    salida.mkdir(parents=True, exist_ok=True)
+    script = pedido["script"]
+    resultado: dict = {"ok": False, "error": None}
+
+    # Se importa todo lo pesado ANTES de recortar los builtins y bloquear la red.
+    sys.path.insert(0, str(RAIZ))
+    import build123d  # noqa: F401
+    import furnus  # noqa: F401
+    from furnus import _contexto
+    from furnus._geometria import motivos_de_invalidez
+
+    _bloquear_red()
+    _contexto._reiniciar(pedido.get("parametros") or {})
+
+    entorno = {"__builtins__": _builtins_seguros(), "__name__": "__furnus_script__"}
+    try:
+        exec(compile(script, "<script>", "exec"), entorno)
+    except BaseException as exc:  # noqa: BLE001 - se informa todo al agente
+        texto, linea = _traceback_legible(exc, script)
+        resultado["error"] = {"tipo": type(exc).__name__, "mensaje": str(exc), "linea": linea, "traceback": texto}
+        resultado["parametros"] = list(_contexto._declarados.values())
+        (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
+        return 0
+
+    resultado["parametros"] = list(_contexto._declarados.values())
+    pieza = entorno.get("resultado")
+    motivos = motivos_de_invalidez(pieza)
+    for v in _contexto._validaciones:
+        for m in v["motivos"]:
+            if m not in motivos:
+                motivos.append(m)
+    resultado["valida"] = not motivos
+    resultado["motivos"] = motivos
+
+    if pieza is None or any(m.startswith(("El script no dejó", "«resultado» no es", "La pieza no tiene ning")) for m in motivos):
+        resultado["error"] = {
+            "tipo": "SinResultado", "mensaje": motivos[0], "linea": None,
+            "traceback": motivos[0] + " Terminá el script con: resultado = pieza.part",
+        }
+        (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
+        return 0
+
+    forma = getattr(pieza, "part", pieza)
+    bb = forma.bounding_box()
+    resultado["medidas"] = {
+        "caja": [round(bb.size.X, 6), round(bb.size.Y, 6), round(bb.size.Z, 6)],
+        "volumen": round(forma.volume, 6),
+        "area": round(forma.area, 6),
+    }
+    salidas = pedido.get("salidas") or ["malla", "medidas"]
+    try:
+        if "malla" in salidas:
+            build123d.export_gltf(forma, str(salida / "pieza.glb"), binary=True)
+            resultado["malla"] = {"formato": "glb", "ruta": str(salida / "pieza.glb")}
+        if "step" in salidas:
+            build123d.export_step(forma, str(salida / "pieza.step"))
+            resultado["step"] = {"formato": "step", "ruta": str(salida / "pieza.step")}
+        if "stl" in salidas:
+            build123d.export_stl(forma, str(salida / "pieza.stl"))
+            resultado["stl"] = {"formato": "stl", "ruta": str(salida / "pieza.stl")}
+        resultado["ok"] = True
+    except BaseException as exc:  # noqa: BLE001
+        resultado["error"] = {
+            "tipo": type(exc).__name__, "mensaje": str(exc), "linea": None,
+            "traceback": f"No se pudo exportar la pieza: {type(exc).__name__}: {exc}",
+        }
+    (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
