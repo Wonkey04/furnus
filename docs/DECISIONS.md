@@ -55,3 +55,14 @@ Registro de lo que se decidió y por qué. Si querés desviarte de algo de acá,
 | 26 | La configuración de «Conectar agente» apunta a la copia local (`node --import tsx …/main.ts`) | Todavía no hay `[paquete-mcp]` publicado |
 
 Ideas fuera de alcance anotadas: worker de kernel «caliente» (cada ejecución paga ~2,5 s de import de build123d); selección de aristas en el visor; estado «Corrigiendo» / «agente editando» en vivo.
+
+## Decisiones de la fase 02 (tomadas por Claude Code; revisar)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 27 | Se agrega una quinta tool MCP: `cambiar_parametros(pieza, valores)`. Reemplaza lo que dice la decisión 5 (4 tools) | `ejecutar_script` exige mandar el script entero; «poné el espesor en 30» no debería reescribir nada. Lo pide el brief de la fase 02 |
+| 28 | `cambiar_parametros` (agente) SÍ crea una revisión nueva, con el mismo script y `valores` guardados en la revisión. El deslizador de la persona sigue sin crear revisiones (decisión 20) | El brief pide una revisión por cada ajuste del agente; arrastrar un deslizador llenaría el historial. Deshacer a una revisión de parámetros restaura sus valores |
+| 29 | El error del kernel suma `sugerencia` (límite, nombre parecido, firma correcta). `fillet` y `chamfer` de build123d se envuelven en el sandbox y calculan el radio máximo con `max_fillet` | El agente externo de la fase 01 frenó porque el error no traía el límite |
+| 30 | `ejecutar_script` con `pieza: «nueva»` no deja huérfana: si el primer script falla, la pieza se borra y no se publican eventos. `medir`, `exportar` y `cambiar_parametros` nunca crean piezas | Pieza huérfana en la prueba de la fase 01 |
+| 31 | `RepositorioPort` suma `borrar(id)` | Hace falta para no dejar piezas vacías |
+| 32 | Los puntos 5 (kernel persistente), 6 (chat embebido) y 7 (renderizador) de la fase 02 quedan sin hacer en esta pasada | Son los grandes y piden decisiones (clave de API, librería de captura); se frenó para revisión |

@@ -1,57 +1,20 @@
-# Tareas · Fase 01 · Prototipo
+# Tareas · Fase 02 · Agente real
 
-Criterio de salida: **un agente crea una carcasa simple, la persona la ve en el visor, cambia un parámetro y se exporta un STEP que abre en otro CAD.**
+Criterio de cierre: los 4 casos de prueba (ambiguo, error imposible, error con arreglo, cambio de parámetro) pasan con un agente real sin ayuda, y una persona puede pedir una pieza desde el chat del visor y ajustarla con el panel. Ver el brief de la fase 02.
 
-Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final, escribí `docs/REPORTE_FASE_01.md` y frená.
+## Hechas en esta pasada
+- [x] 1. Errores con contexto: `sugerencia` en el error, radio máximo de filetes/chaflanes, nombre parecido, firma correcta
+- [x] 2. `cambiar_parametros(pieza, valores)` con revisión nueva
+- [x] 3. Descripción de `ejecutar_script`: suposiciones, cuándo preguntar, pedidos imposibles
+- [x] 4. Sin piezas huérfanas
 
-## 1. Esqueleto
-- [x] Monorepo pnpm con `packages/`, `apps/`, `services/`, `docs/`
-- [x] TypeScript, linter y tests configurados; `pnpm test` corre todo
-- [x] README de tres líneas por paquete (qué es, qué expone, qué NO debe importar)
-- [x] `.env.example` y `.gitignore`
+## Pendientes
+- [ ] 5. Kernel persistente (bajar de ~3 s a menos de 1 s)
+- [ ] 6. Chat embebido en el visor (API de Anthropic, streaming, clave en `.env`)
+- [ ] 7. Renderizador (`renderizar`)
 
-## 2. Kernel (Python)
-- [x] Servicio local que recibe `{script, parametros, salidas}` por JSON
-- [x] Análisis estático del script (lista de imports permitidos, sin `os`/`subprocess`/`socket`/`open`)
-- [x] Ejecución en subproceso con timeout y límite de memoria, sin red
-- [x] Módulo `furnus` con `param()` y `validar()`
-- [x] Salidas: malla GLB, medidas (caja, volumen, área), validez con motivos, parámetros declarados, error con traceback legible
-- [x] Exportación a STEP
-- [x] Tests: script válido, script con error, script con import prohibido, timeout, pieza inválida
-
-## 3. Dominio y aplicación (TypeScript)
-- [x] `Pieza`, `Revision`, `Parametro` en `packages/core`
-- [x] Puertos `KernelPort` y `RepositorioPort`
-- [x] Casos de uso: `EjecutarScript`, `CambiarParametro`, `ConsultarEstado`, `Exportar`
-- [x] `KernelPort` falso para tests; tests de dominio sin levantar nada
-- [x] Tests de contrato que corren la misma batería contra el kernel real
-
-## 4. Persistencia local
-- [x] `adapter-local` implementa `RepositorioPort` con la estructura de `ARCHITECTURE.md`
-- [x] Tests: guardar, cargar, volver a una revisión anterior
-
-## 5. MCP
-- [x] `packages/mcp-server` con las 4 tools sobre los casos de uso
-- [x] Descripciones claras y un ejemplo de script en la descripción de `ejecutar_script`
-- [x] Respuesta de `ejecutar_script` con errores, medidas y validez (el feedback que cierra el bucle)
-- [ ] Probar que Claude Desktop (o Cursor) lo conecta — pendiente: verificado por protocolo, no con el cliente real
-
-## 6. API
-- [x] HTTP: listar proyectos, estado de una pieza, servir la malla, cambiar parámetro, exportar
-- [x] WebSocket: avisar al visor cuando el agente ejecuta un script
-
-## 7. Visor y pantallas
-- [x] Sistema de estilos con los tokens de `docs/BRAND.md` (claro y oscuro)
-- [x] Pantalla «Mis piezas»
-- [x] Pantalla «Pieza»: visor 3D con orbitar y acercar, vistas, chips de dimensiones y validez, panel de parámetros generado desde los declarados, actividad del agente
-- [x] Pantalla «Conectar agente»
-- [x] Diálogo «Exportar» (STEP funcional; STL y 3MF deshabilitados con «Próximamente»)
-- [x] Estados: vacío, cargando, error del script, pieza inválida, agente desconectado
-- [x] Revisar a 400px de ancho
-
-## 8. Demo y cierre
-- [ ] Con un agente real, pedir una carcasa simple y llegar a un STEP válido sin tocar código — parcial: lo hizo Claude por el MCP stdio, falta Claude Desktop real (ver reporte)
-- [ ] Abrir el STEP en otro CAD (FreeCAD, Fusion u otro) y confirmar que carga y mide bien — pendiente: solo reimportado con OpenCascade
-- [x] Probar al menos un error inducido para ver que el agente se corrige con el feedback
-- [x] Escribir `docs/REPORTE_FASE_01.md`: qué se hizo, qué falló, cuántos intentos necesitó el agente, qué se aprendió y qué recomendás para la fase 02
-- [ ] Parar y esperar la revisión de Matías
+## Pruebas con agente real (necesitan a Matías)
+- [ ] Reiniciar el cliente MCP (carga la tool nueva) y repetir «poné el espesor en 30» con id explícito
+- [ ] Error con arreglo posible, sin que el agente lea el repo
+- [ ] Abrir un STEP en FreeCAD o Fusion y probar el STEP en pulgadas
+- [ ] Repetir con un segundo agente (Cursor u otro)
