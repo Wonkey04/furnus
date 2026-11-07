@@ -7,9 +7,9 @@ Criterio de cierre: los 4 casos de prueba (ambiguo, error imposible, error con a
 - [x] 2. `cambiar_parametros(pieza, valores)` con revisión nueva
 - [x] 3. Descripción de `ejecutar_script`: suposiciones, cuándo preguntar, pedidos imposibles
 - [x] 4. Sin piezas huérfanas
+- [x] 5. Kernel persistente: ~3 s → ~0,03 s por ejecución en caliente (el primer arranque sigue pagando el import)
 
 ## Pendientes
-- [ ] 5. Kernel persistente (bajar de ~3 s a menos de 1 s)
 - [ ] 6. Chat embebido en el visor (API de Anthropic, streaming, clave en `.env`)
 - [ ] 7. Renderizador (`renderizar`)
 
