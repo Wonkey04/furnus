@@ -11,7 +11,7 @@ import {
   Renderizar,
   type Dependencias,
 } from "@furnus/app";
-import { ErrorDeDominio } from "@furnus/core";
+import { ErrorDeDominio, type ResultadoEjecucion } from "@furnus/core";
 import type { EventoPieza } from "@furnus/app";
 
 export const EJEMPLO_SCRIPT = `from furnus import param, sel, validar
@@ -40,12 +40,14 @@ Reglas del script:
 Cuando el pedido no trae medidas («hacé una mesa»):
 - Asumí valores típicos y razonables, sin preguntar, y declarálos todos como param() para que la persona los ajuste.
 - Al final de tu respuesta listá las suposiciones («Asumí: largo 1200 mm, alto 740 mm…») para que la persona las corrija.
-- Preguntá solo si la ambigüedad cambia la FORMA del objeto (¿con cajones o sin?), no sus dimensiones.
+- Preguntá solo si la ambigüedad cambia la FORMA del objeto (¿con cajones o sin?, ¿agujero pasante o ciego?), no sus dimensiones.
 - Si el pedido es imposible (un filete que no entra, una pared más gruesa que la pieza), no inventes: decí cuál es el máximo posible y preguntá si lo querés así.
 
-Para ajustar solo un valor de una pieza que ya existe, usá cambiar_parametros: no hace falta mandar el script de nuevo.
+Agujeros: Hole(radius=, depth=) hace un agujero pasante si no le das depth y un agujero ciego si se lo das. Para ubicarlo en una cara: with Locations(sel.caras(pieza, "superior")[0].center()): Hole(radius=5). Para agujeros que entran por otra cara: with Locations(sel.caras(pieza, "frontal")[0]): Hole(radius=3, depth=8).
 
-Qué devuelve (después de CADA ejecución): ok, error (tipo, mensaje, línea, traceback legible y sugerencia con el límite o el nombre correcto si el script falló), medidas (caja X×Y×Z, volumen, área), valida y motivos (si la geometría es un sólido válido), parametros declarados y revision. Si ok es false, la pieza anterior sigue vigente: leé el error, corregí el script y volvé a llamar. Si valida es false, arreglá la geometría antes de exportar (por ejemplo, sólidos separados).
+Para ajustar solo un valor de una pieza que ya existe NO mandes el script de nuevo: usá cambiar_parametros (pieza + valores). Este tool exige siempre el script completo.
+
+Qué devuelve (después de CADA ejecución): resumen (una línea: qué pasó), ok, error (tipo, mensaje, línea, traceback legible y sugerencia con el límite o el nombre correcto si el script falló), medidas (caja X×Y×Z, volumen, área), valida y motivos (si la geometría es un sólido válido), parametros declarados y revision. Si ok es false, la pieza anterior sigue vigente: leé el error, corregí el script y volvé a llamar. Si valida es false, arreglá la geometría antes de exportar (por ejemplo, sólidos separados).
 
 Ejemplo:
 
@@ -58,6 +60,19 @@ type Contenido = {
 
 function texto(valor: unknown, esError = false): Contenido {
   return { content: [{ type: "text", text: typeof valor === "string" ? valor : JSON.stringify(valor, null, 2) }], isError: esError || undefined };
+}
+
+/** Una línea arriba de todo: el agente no tiene que recorrer el JSON para saber si salió bien. */
+function resumenEjecucion(r: ResultadoEjecucion): string {
+  if (!r.ok) {
+    const e = r.error;
+    const donde = e?.linea ? ` (línea ${e.linea})` : "";
+    const sug = e?.sugerencia ? ` Sugerencia: ${e.sugerencia}` : "";
+    return `Falló${donde}: ${e?.mensaje ?? "error desconocido"}.${sug} La pieza anterior sigue vigente.`;
+  }
+  const caja = r.medidas ? r.medidas.caja.map((m) => Number(m.toFixed(1))).join(" × ") + " mm" : "sin medidas";
+  const valida = r.valida ? "geometría válida" : `geometría INVÁLIDA (${r.motivos.join("; ")})`;
+  return `OK, revisión ${r.revision}: ${caja}, ${valida}.`;
 }
 
 function errorLegible(e: unknown): Contenido {
@@ -126,7 +141,9 @@ export function crearServidorMcp(deps: Dependencias): McpServer {
     {
       description: DESCRIPCION_EJECUTAR,
       inputSchema: {
-        script: z.string().describe("Script completo de build123d. Reemplaza al anterior."),
+        script: z
+          .string()
+          .describe("Script completo de build123d (obligatorio). Reemplaza al anterior. Para cambiar solo un valor, usá cambiar_parametros."),
         parametros: z.record(z.number()).optional().describe("Valores para los param() declarados, por nombre. Opcional."),
         pieza,
         nombre: z.string().optional().describe("Nombre de la pieza, solo si se crea una nueva."),
@@ -139,11 +156,11 @@ export function crearServidorMcp(deps: Dependencias): McpServer {
           const aviso = descartada
             ? { aviso: "La pieza nueva no se guardó porque el script falló. Corregilo y mandalo de nuevo con pieza: «nueva»." }
             : {};
-          return texto({ pieza: descartada ? null : destino, ...r, ...aviso }, !r.ok);
+          return texto({ resumen: resumenEjecucion(r), pieza: descartada ? null : destino, ...r, ...aviso }, !r.ok);
         }
         const destino = await resolverPieza(id, nombre);
         const r = await new EjecutarScript(deps).ejecutar({ piezaId: destino.id, script, parametros, origen: "agente" });
-        return texto({ pieza: destino, ...r }, !r.ok);
+        return texto({ resumen: resumenEjecucion(r), pieza: destino, ...r }, !r.ok);
       } catch (e) {
         return errorLegible(e);
       }
@@ -164,7 +181,7 @@ Pasá siempre el id de la pieza (lo devuelve ejecutar_script). Los valores tiene
       try {
         const destino = await resolverExistente(id);
         const r = await new CambiarParametros(deps).ejecutar({ piezaId: destino.id, valores, origen: "agente" });
-        return texto({ pieza: destino, ...r }, !r.ok);
+        return texto({ resumen: resumenEjecucion(r), pieza: destino, ...r }, !r.ok);
       } catch (e) {
         return errorLegible(e);
       }

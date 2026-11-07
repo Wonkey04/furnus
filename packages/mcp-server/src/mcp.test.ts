@@ -65,6 +65,22 @@ describe("contrato del MCP", () => {
     expect(t.description).toContain("máximo posible");
   });
 
+  it("la descripción de ejecutar_script cubre agujeros pasantes/ciegos y manda a cambiar_parametros", async () => {
+    const t = (await cliente.listTools()).tools.find((x) => x.name === "ejecutar_script")!;
+    expect(t.description).toContain("pasante o ciego");
+    expect(t.description).toContain('Locations(sel.caras(pieza, "superior")[0].center())');
+    expect(t.description).toContain("usá cambiar_parametros");
+  });
+
+  it("toda respuesta de ejecutar_script abre con un resumen de una línea", async () => {
+    const bien = await llamar("ejecutar_script", { script: SCRIPT_CAJA, pieza: "nueva" });
+    expect(bien.json.resumen).toMatch(/^OK, revisión 1:/);
+    expect(Object.keys(bien.json)[0]).toBe("resumen");
+    const fallido = CASOS_CONTRATO.find((c) => c.espera.errorTipo === "ScriptProhibido")!;
+    const mal = await llamar("ejecutar_script", { script: fallido.script, pieza: "nueva" });
+    expect(mal.json.resumen).toMatch(/^Falló/);
+  });
+
   it("cambiar_parametros con id explícito cambia solo el parámetro y crea una revisión nueva", async () => {
     const a = await llamar("ejecutar_script", { script: SCRIPT_CAJA });
     const id = a.json.pieza.id as string;

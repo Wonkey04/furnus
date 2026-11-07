@@ -58,3 +58,21 @@ Las que más conviene que revises:
 3. Antes de la fase 03: decidir quién paga los tokens, persistir el historial del chat y definir el aislamiento real del sandbox.
 
 Paro acá y espero tu revisión.
+
+## Anexo · Primera pasada de pruebas con agente (parcial)
+
+Un agente corrió los casos 1 a 3 contra el MCP **anterior a la fase 02** (4 tools, sin `cambiar_parametros`). No cuenta como evidencia limpia: ya había leído el repo y los tests. El caso 4 no se pudo hacer.
+
+| Caso | Intentos | Resultado |
+|---|---|---|
+| 1 · Mesa | 1 | Sin preguntas; asumió y parametrizó todo; el volumen cierra. |
+| 2 · Caja con agujero | 1 | Eligió agujero pasante y centrado en silencio. |
+| 3 · Filete de 15 mm | 1 (falló) | Error con máximo (4,9 mm) y sugerencia; no insistió y preguntó. |
+| 4 · Cambiar espesor | 0 | Imposible con el MCP viejo (`Required at script`). |
+
+Ajustes hechos a partir de eso (`packages/mcp-server/src/herramientas.ts`):
+- La descripción de `ejecutar_script` suma «¿agujero pasante o ciego?» a las dudas que sí cambian la forma, y un ejemplo corto de agujero (`Locations(sel.caras(...)[0].center())` + `Hole`, pasante y ciego). Verificado en el sandbox: volumen 22203 mm³ = 24000 − 1570,8 − 226,2.
+- La descripción y el campo `script` dicen explícitamente que para cambiar un solo valor se usa `cambiar_parametros`.
+- Toda respuesta de `ejecutar_script` y `cambiar_parametros` empieza con `resumen` (una línea: OK con medidas y validez, o el error con línea y sugerencia).
+
+Sigue pendiente: repetir con un agente limpio y el cliente MCP reiniciado (caso 4 incluido). La pieza huérfana `398be2ef` es de la versión vieja y se borra a mano.
