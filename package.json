@@ -1,0 +1,26 @@
+{
+  "name": "furnus",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "pnpm -r --if-present test && pnpm kernel:test",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "dev": "node scripts/dev.mjs",
+    "kernel": "node scripts/kernel.mjs",
+    "kernel:test": "node scripts/kernel.mjs test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.1.0"
+  }
+}
