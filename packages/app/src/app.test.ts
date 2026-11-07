@@ -3,6 +3,7 @@ import { ErrorDeDominio } from "@furnus/core";
 import {
   CASOS_CONTRATO,
   CambiarParametro,
+  CambiarParametros,
   ConsultarEstado,
   CrearPieza,
   EjecutarScript,
@@ -12,6 +13,7 @@ import {
   KernelFalso,
   MedirPieza,
   RelojFijo,
+  Renderizar,
   RepositorioEnMemoria,
   SCRIPT_CAJA,
   verificarRespuesta,
@@ -182,5 +184,56 @@ describe("Exportar y Medir", () => {
     await expect(medir.ejecutar({ piezaId, consulta: "espesor_minimo" })).rejects.toMatchObject({
       codigo: "CONSULTA_NO_DISPONIBLE",
     });
+  });
+});
+
+describe("Renderizar", () => {
+  const conRender = () =>
+    new KernelFalso((p) =>
+      p.salidas.includes("render")
+        ? { ...CAJA!.respuestaFalsa, render: (p.vistas ?? []).map((v) => ({ vista: v, ruta: `memoria/${v}.png` })) }
+        : CAJA!.respuestaFalsa,
+    );
+
+  it("pide las vistas al kernel con el script y los valores vigentes, y registra la actividad", async () => {
+    const k = conRender();
+    const d = { ...deps, kernel: k };
+    await new EjecutarScript(d).ejecutar({ piezaId, script: SCRIPT_CAJA });
+    const r = await new Renderizar(d).ejecutar({ piezaId, vistas: ["iso", "arriba", "iso"] });
+    expect(r.vistas.map((v) => v.vista)).toEqual(["iso", "arriba"]);
+    const pedido = k.llamadas.at(-1)!;
+    expect(pedido).toMatchObject({ salidas: ["render"], vistas: ["iso", "arriba"], script: SCRIPT_CAJA });
+    expect(pedido.directorioSalida).toContain("/render");
+    expect((await repo.obtener(piezaId))!.actividad.at(-1)).toMatchObject({ herramienta: "renderizar", estado: "ok" });
+  });
+
+  it("sin vistas manda las cuatro, y sin script explica qué falta", async () => {
+    const d = { ...deps, kernel: conRender() };
+    await expect(new Renderizar(d).ejecutar({ piezaId })).rejects.toMatchObject({ codigo: "SIN_SCRIPT" });
+    await new EjecutarScript(d).ejecutar({ piezaId, script: SCRIPT_CAJA });
+    expect((await new Renderizar(d).ejecutar({ piezaId })).vistas).toHaveLength(4);
+  });
+});
+
+describe("CambiarParametros", () => {
+  it("crea una revisión con el mismo script y los valores, y deshacer los restaura", async () => {
+    await new EjecutarScript(deps).ejecutar({ piezaId, script: SCRIPT_CAJA });
+    const r = await new CambiarParametros(deps).ejecutar({ piezaId, valores: { largo: 100 } });
+    expect(r).toMatchObject({ ok: true, revision: 2 });
+    let p = (await repo.obtener(piezaId))!;
+    expect(p.revisiones.map((x) => x.valores)).toEqual([undefined, { largo: 100 }]);
+    await new IrARevision(deps).ejecutar({ piezaId, destino: "deshacer" });
+    p = (await repo.obtener(piezaId))!;
+    expect(p.revisionActual).toBe(1);
+  });
+
+  it("junta todos los problemas de validación en un solo error", async () => {
+    await new EjecutarScript(deps).ejecutar({ piezaId, script: SCRIPT_CAJA });
+    await expect(
+      new CambiarParametros(deps).ejecutar({ piezaId, valores: { largo: 500, espesor: 3 } }),
+    ).rejects.toMatchObject({ message: expect.stringContaining("entre 10 y 200") });
+    await expect(
+      new CambiarParametros(deps).ejecutar({ piezaId, valores: { largo: 500, espesor: 3 } }),
+    ).rejects.toMatchObject({ message: expect.stringContaining("«espesor» no existe") });
   });
 });

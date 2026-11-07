@@ -7,5 +7,6 @@ export * from "./casos-de-uso/cambiar-parametros.js";
 export * from "./casos-de-uso/ir-a-revision.js";
 export * from "./casos-de-uso/consultar-estado.js";
 export * from "./casos-de-uso/exportar.js";
+export * from "./casos-de-uso/renderizar.js";
 export * from "./contrato/casos.js";
 export * from "./testing.js";

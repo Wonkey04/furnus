@@ -278,3 +278,44 @@ def test_se_recupera_despues_de_quedarse_sin_memoria(monkeypatch):
 def test_el_modo_suelto_sigue_andando(monkeypatch):
     monkeypatch.setenv("FURNUS_KERNEL_PERSISTENTE", "0")
     assert correr(CAJA)["ok"] is True
+
+
+# --- Fase 02: renderizador ---
+
+def test_render_genera_un_png_por_vista(tmp_path):
+    from PIL import Image
+
+    r = sandbox.ejecutar(
+        {"script": CAJA, "parametros": {}, "salidas": ["render"], "vistas": ["iso", "frente"]}, str(tmp_path)
+    )
+    assert r["ok"] is True
+    assert [x["vista"] for x in r["render"]] == ["iso", "frente"]
+    for x in r["render"]:
+        img = Image.open(x["ruta"])
+        assert img.size == (640, 480)
+        pixeles = list(img.convert("L").tobytes())
+        assert min(pixeles) < 120 and max(pixeles) == 255  # hay pieza y hay fondo
+
+
+def test_render_sin_vistas_dibuja_las_cuatro(tmp_path):
+    r = sandbox.ejecutar({"script": CAJA, "parametros": {}, "salidas": ["render"]}, str(tmp_path))
+    assert [x["vista"] for x in r["render"]] == ["iso", "frente", "arriba", "derecha"]
+
+
+def test_render_con_vista_desconocida_dice_cuales_hay(tmp_path):
+    r = sandbox.ejecutar({"script": CAJA, "parametros": {}, "salidas": ["render"], "vistas": ["atras"]}, str(tmp_path))
+    assert r["ok"] is False
+    assert "iso, frente, arriba, derecha" in r["error"]["mensaje"]
+
+
+def test_render_dibuja_la_geometria_invalida(tmp_path):
+    dos_solidos = """
+from build123d import *
+with BuildPart() as pieza:
+    Box(10, 10, 10)
+    with Locations((50, 0, 0)):
+        Box(10, 10, 10)
+resultado = pieza.part
+"""
+    r = sandbox.ejecutar({"script": dos_solidos, "salidas": ["render"], "vistas": ["iso"]}, str(tmp_path))
+    assert r["ok"] is True and r["valida"] is False and len(r["render"]) == 1

@@ -1,12 +1,16 @@
 import type { ErrorScript, Medidas, Parametro, Pieza } from "@furnus/core";
 
-export type SalidaKernel = "malla" | "medidas" | "step" | "stl";
+export type SalidaKernel = "malla" | "medidas" | "step" | "stl" | "render";
+
+export type Vista = "iso" | "frente" | "arriba" | "derecha";
 
 export interface PedidoKernel {
   script: string;
   parametros: Record<string, number>;
   salidas: SalidaKernel[];
   unidad?: "mm" | "in";
+  /** Solo con la salida «render»: qué vistas dibujar. */
+  vistas?: Vista[];
   /** Carpeta donde el kernel deja los archivos generados. */
   directorioSalida?: string;
 }
@@ -21,6 +25,7 @@ export interface RespuestaKernel {
   malla: ArchivoKernel | null;
   step?: ArchivoKernel | null;
   stl?: ArchivoKernel | null;
+  render?: { vista: string; ruta: string }[] | null;
   medidas: Medidas | null;
   valida: boolean;
   motivos: string[];

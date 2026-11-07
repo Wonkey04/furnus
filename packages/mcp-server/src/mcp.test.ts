@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -11,6 +14,11 @@ import {
 } from "@furnus/app";
 import { crearServidorMcp } from "./herramientas.js";
 
+const PNG_MINIMO = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 let cliente: Client;
 let repo: RepositorioEnMemoria;
 let eventos: EventosEnMemoria;
@@ -21,6 +29,15 @@ beforeEach(async () => {
   const conStep = new KernelFalso((p) => {
     const caso = CASOS_CONTRATO.find((c) => c.script === p.script && JSON.stringify(c.parametros ?? {}) === JSON.stringify(p.parametros));
     const base = (caso ?? CASOS_CONTRATO[0]!).respuestaFalsa;
+    if (p.salidas.includes("render")) {
+      const carpeta = mkdtempSync(join(tmpdir(), "furnus-mcp-"));
+      const render = (p.vistas ?? []).map((vista) => {
+        const ruta = join(carpeta, `${vista}.png`);
+        writeFileSync(ruta, PNG_MINIMO);
+        return { vista, ruta };
+      });
+      return { ...base, render };
+    }
     return p.salidas.includes("step") ? { ...base, step: { formato: "step", ruta: "/tmp/p.step" } } : base;
   });
   const servidor = crearServidorMcp({ kernel: conStep, repositorio: repo, eventos, reloj: new RelojFijo() });
@@ -139,10 +156,27 @@ describe("contrato del MCP", () => {
     expect(mal.isError).toBe(true);
   });
 
-  it("renderizar avisa honestamente que todavía no existe", async () => {
-    const { json, isError } = await llamar("renderizar", { vistas: ["iso"] });
-    expect(isError).toBe(true);
-    expect(json.error.codigo).toBe("NO_DISPONIBLE");
+  it("renderizar devuelve una imagen por vista pedida, más el resumen", async () => {
+    await llamar("ejecutar_script", { script: SCRIPT_CAJA });
+    const r = (await cliente.callTool({ name: "renderizar", arguments: { vistas: ["iso", "frente"] } })) as {
+      content: { type: string; text?: string; data?: string; mimeType?: string }[];
+      isError?: boolean;
+    };
+    expect(r.isError).toBeFalsy();
+    expect(r.content.map((c) => c.type)).toEqual(["text", "image", "image"]);
+    expect(JSON.parse(r.content[0]!.text!)).toMatchObject({ ok: true, vistas: ["iso", "frente"] });
+    expect(r.content[1]).toMatchObject({ mimeType: "image/png" });
+    expect(Buffer.from(r.content[1]!.data!, "base64").subarray(1, 4).toString()).toBe("PNG");
+  });
+
+  it("renderizar sin vistas manda las cuatro y sin piezas no crea ninguna", async () => {
+    const sin = await llamar("renderizar", {});
+    expect(sin.isError).toBe(true);
+    expect(sin.json.error.codigo).toBe("PIEZA_NO_ENCONTRADA");
+    expect(repo.piezas.size).toBe(0);
+    await llamar("ejecutar_script", { script: SCRIPT_CAJA });
+    const r = (await cliente.callTool({ name: "renderizar", arguments: {} })) as { content: { type: string }[] };
+    expect(r.content.filter((c) => c.type === "image")).toHaveLength(4);
   });
 
   it("exportar devuelve la ruta del STEP; con pieza inválida devuelve el motivo", async () => {

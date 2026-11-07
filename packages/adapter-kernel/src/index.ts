@@ -76,6 +76,7 @@ export class KernelHttp implements KernelPort {
         parametros: pedido.parametros,
         salidas: pedido.salidas,
         unidad: pedido.unidad,
+        vistas: pedido.vistas,
         directorio_salida: pedido.directorioSalida,
       }),
     });
@@ -86,6 +87,7 @@ export class KernelHttp implements KernelPort {
       malla: crudo.malla ?? null,
       step: crudo.step ?? null,
       stl: crudo.stl ?? null,
+      render: crudo.render ?? null,
       medidas: crudo.medidas ?? null,
       valida: crudo.valida ?? false,
       motivos: crudo.motivos ?? [],

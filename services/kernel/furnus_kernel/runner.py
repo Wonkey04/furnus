@@ -150,6 +150,10 @@ def procesar(pedido: dict, salida: Path) -> None:
         if "malla" in salidas:
             build123d.export_gltf(forma, str(salida / "pieza.glb"), binary=True)
             resultado["malla"] = {"formato": "glb", "ruta": str(salida / "pieza.glb")}
+        if "render" in salidas:
+            from furnus_kernel import render
+
+            resultado["render"] = render.renderizar(forma, pedido.get("vistas") or list(render.VISTAS), salida / "render")
         if "step" in salidas:
             _exportar_step(forma, str(salida / "pieza.step"), pedido.get("unidad", "mm"))
             resultado["step"] = {"formato": "step", "ruta": str(salida / "pieza.step")}

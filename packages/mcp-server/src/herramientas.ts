@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
@@ -7,6 +8,7 @@ import {
   Exportar,
   ListarPiezas,
   MedirPieza,
+  Renderizar,
   type Dependencias,
 } from "@furnus/app";
 import { ErrorDeDominio } from "@furnus/core";
@@ -49,7 +51,10 @@ Ejemplo:
 
 ${EJEMPLO_SCRIPT}`;
 
-type Contenido = { content: { type: "text"; text: string }[]; isError?: boolean };
+type Contenido = {
+  content: ({ type: "text"; text: string } | { type: "image"; data: string; mimeType: string })[];
+  isError?: boolean;
+};
 
 function texto(valor: unknown, esError = false): Contenido {
   return { content: [{ type: "text", text: typeof valor === "string" ? valor : JSON.stringify(valor, null, 2) }], isError: esError || undefined };
@@ -187,14 +192,26 @@ Pasá siempre el id de la pieza (lo devuelve ejecutar_script). Los valores tiene
     "renderizar",
     {
       description:
-        "Captura de la pieza desde varias vistas (iso, frente, arriba, derecha). TODAVÍA NO DISPONIBLE: llega en la fase 02. Por ahora confiá en medidas y valida de ejecutar_script.",
+        "Devuelve imágenes (PNG) de la pieza vigente para que veas si «parece bien»: agujeros del lado equivocado, patas flotando, proporciones raras, cosas que las medidas no muestran. Vistas: iso, frente (mira hacia +Y; X a la derecha), arriba (X a la derecha, Y hacia arriba) y derecha (Y a la derecha). Por defecto manda las cuatro; pedí solo las que necesites. Cada imagen trae las dimensiones de la caja y los ejes X/Y/Z. Funciona también con geometría inválida. Es solo lectura: no crea ni cambia revisiones.",
       inputSchema: { vistas: z.array(z.enum(["iso", "frente", "arriba", "derecha"])).optional(), pieza },
     },
-    async () =>
-      texto(
-        { ok: false, error: { codigo: "NO_DISPONIBLE", mensaje: "Las capturas todavía no existen (fase 02). Usá las medidas y la validez que devuelve ejecutar_script." } },
-        true,
-      ),
+    async ({ vistas, pieza: id }) => {
+      try {
+        const destino = await resolverExistente(id);
+        const r = await new Renderizar(deps).ejecutar({ piezaId: destino.id, vistas });
+        const imagenes = await Promise.all(
+          r.vistas.map(async (v) => ({
+            type: "image" as const,
+            data: (await readFile(v.ruta)).toString("base64"),
+            mimeType: "image/png",
+          })),
+        );
+        const resumen = { ok: true, pieza: destino, vistas: r.vistas.map((v) => v.vista), rutas: r.vistas.map((v) => v.ruta) };
+        return { content: [{ type: "text" as const, text: JSON.stringify(resumen, null, 2) }, ...imagenes] };
+      } catch (e) {
+        return errorLegible(e);
+      }
+    },
   );
 
   servidor.registerTool(
