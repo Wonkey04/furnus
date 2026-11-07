@@ -1,0 +1,19 @@
+{
+  "name": "@furnus/agente",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@furnus/app": "workspace:*",
+    "@furnus/core": "workspace:*",
+    "@furnus/mcp-server": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
