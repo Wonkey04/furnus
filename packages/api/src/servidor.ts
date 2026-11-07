@@ -88,6 +88,8 @@ export interface OpcionesServidor {
   deps: Omit<Dependencias, "eventos">;
   hub?: HubEventos;
   presencia?: PresenciaAgente;
+  /** Carpeta raíz del repo; el visor la usa para armar la configuración MCP. */
+  raiz?: string;
 }
 
 export async function crearServidor(opciones: OpcionesServidor): Promise<FastifyInstance> {
@@ -198,6 +200,8 @@ export async function crearServidor(opciones: OpcionesServidor): Promise<Fastify
       }
     },
   );
+
+  app.get("/api/configuracion", async () => ({ raiz: opciones.raiz ?? null }));
 
   app.get("/api/agente", async () => presencia.estado());
 

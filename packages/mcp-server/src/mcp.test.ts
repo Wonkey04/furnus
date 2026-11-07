@@ -31,7 +31,7 @@ beforeEach(async () => {
 
 async function llamar(name: string, args: Record<string, unknown>) {
   const r = (await cliente.callTool({ name, arguments: args })) as { content: { text: string }[]; isError?: boolean };
-  return { json: JSON.parse(r.content[0]!.text) as Record<string, any>, isError: r.isError === true };
+  return { json: JSON.parse(r.content[0]!.text) as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any, isError: r.isError === true };
 }
 
 describe("contrato del MCP", () => {

@@ -41,13 +41,13 @@ Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final,
 - [x] WebSocket: avisar al visor cuando el agente ejecuta un script
 
 ## 7. Visor y pantallas
-- [ ] Sistema de estilos con los tokens de `docs/BRAND.md` (claro y oscuro)
-- [ ] Pantalla «Mis piezas»
-- [ ] Pantalla «Pieza»: visor 3D con orbitar y acercar, vistas, chips de dimensiones y validez, panel de parámetros generado desde los declarados, actividad del agente
-- [ ] Pantalla «Conectar agente»
-- [ ] Diálogo «Exportar» (STEP funcional; STL y 3MF deshabilitados con «Próximamente»)
-- [ ] Estados: vacío, cargando, error del script, pieza inválida, agente desconectado
-- [ ] Revisar a 400px de ancho
+- [x] Sistema de estilos con los tokens de `docs/BRAND.md` (claro y oscuro)
+- [x] Pantalla «Mis piezas»
+- [x] Pantalla «Pieza»: visor 3D con orbitar y acercar, vistas, chips de dimensiones y validez, panel de parámetros generado desde los declarados, actividad del agente
+- [x] Pantalla «Conectar agente»
+- [x] Diálogo «Exportar» (STEP funcional; STL y 3MF deshabilitados con «Próximamente»)
+- [x] Estados: vacío, cargando, error del script, pieza inválida, agente desconectado
+- [x] Revisar a 400px de ancho
 
 ## 8. Demo y cierre
 - [ ] Con un agente real, pedir una carcasa simple y llegar a un STEP válido sin tocar código

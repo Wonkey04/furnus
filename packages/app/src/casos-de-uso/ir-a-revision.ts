@@ -51,7 +51,7 @@ export class IrARevision {
     if (!respuesta.ok) {
       pieza = registrarActividad(
         pieza,
-        { herramienta: "ejecutar_script", origen, estado: "error", detalle: `Revisión ${numero}: ${resumenError(respuesta)}` },
+        { herramienta: "ejecutar_script", origen, estado: "error", detalle: `Revisión ${numero}: ${resumenError(respuesta)}`, traza: respuesta.error?.traceback },
         ahora,
       );
       await repositorio.guardar(pieza);

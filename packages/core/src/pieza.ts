@@ -60,7 +60,7 @@ export function revisionSiguiente(pieza: Pieza): number | null {
 
 export function registrarActividad(
   pieza: Pieza,
-  datos: { herramienta: Herramienta; origen: OrigenCambio; estado: "ok" | "error"; detalle: string },
+  datos: { herramienta: Herramienta; origen: OrigenCambio; estado: "ok" | "error"; detalle: string; traza?: string },
   ahora: string,
 ): Pieza {
   const id = (pieza.actividad.at(-1)?.id ?? 0) + 1;

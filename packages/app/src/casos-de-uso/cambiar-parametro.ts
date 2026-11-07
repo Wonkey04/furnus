@@ -50,6 +50,7 @@ export class CambiarParametro {
           origen,
           estado: "error",
           detalle: `${entrada.nombre} = ${entrada.valor}: ${resumenError(respuesta)}`,
+          traza: respuesta.error?.traceback,
         },
         ahora,
       );

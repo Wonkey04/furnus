@@ -49,6 +49,8 @@ export interface Actividad {
   origen: OrigenCambio;
   estado: "ok" | "error";
   detalle: string;
+  /** Traceback completo cuando el error vino de un script; el visor lo muestra entero. */
+  traza?: string;
 }
 
 export interface Pieza {

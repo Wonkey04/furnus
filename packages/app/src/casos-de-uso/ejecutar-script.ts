@@ -40,7 +40,7 @@ export class EjecutarScript {
     if (!respuesta.ok) {
       pieza = registrarActividad(
         pieza,
-        { herramienta: "ejecutar_script", origen, estado: "error", detalle: resumenError(respuesta) },
+        { herramienta: "ejecutar_script", origen, estado: "error", detalle: resumenError(respuesta), traza: respuesta.error?.traceback },
         ahora,
       );
       await repositorio.guardar(pieza);
