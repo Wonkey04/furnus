@@ -38,3 +38,20 @@ Registro de lo que se decidió y por qué. Si querés desviarte de algo de acá,
 - Arquitectura (edificios) como segundo público.
 - Ensamblajes con restricciones.
 - Planos 2D a partir de la pieza.
+
+## Decisiones de la fase 01 (tomadas por Claude Code, baratas de revertir; revisar)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 17 | Persistencia local en `~/.furnus/proyectos` (o `FURNUS_HOME`) confirmada de hecho | Estaba propuesta; se implementó tal cual |
+| 18 | Paquete extra `packages/adapter-kernel` (`KernelPort` por HTTP al servicio Python) | `ARCHITECTURE.md` no lo listaba y hacía falta un adaptador de salida |
+| 19 | Un script que falla NO crea revisión; el error queda en la actividad y la pieza anterior sigue vigente | Pantalla: «no tapar la pieza anterior» |
+| 20 | Cambiar parámetro y deshacer/rehacer no crean revisiones: vuelven a correr el script (valores en `parametros.json`) | El historial queda limpio |
+| 21 | `ejecutar_script` acepta `pieza` y `nombre` opcionales; sin `pieza` usa la última editada | Un MCP stdio no tiene noción de «pieza abierta» |
+| 22 | `medir` solo con `caja`/`volumen`/`area`; `renderizar` existe pero responde «no disponible» | El renderizador es de la fase 02; se mantienen las 4 tools |
+| 23 | MCP y API son procesos distintos: el MCP avisa por `POST /interno/*` (eventos y latido del agente) | Sin base compartida en la fase 01 |
+| 24 | Sandbox en Windows: Job Object (memoria + kill del árbol), imports por AST y `__import__` recortado, `socket` anulado | No hay `setrlimit` en Windows. Sigue sin ser seguridad real |
+| 25 | STEP en pulgadas: se etiqueta el archivo en INCH con OpenCascade (`write.step.unit`); no se reescala la geometría | `export_step(unit=IN)` de build123d reescala y daría una pieza 25,4 veces mayor |
+| 26 | La configuración de «Conectar agente» apunta a la copia local (`node --import tsx …/main.ts`) | Todavía no hay `[paquete-mcp]` publicado |
+
+Ideas fuera de alcance anotadas: worker de kernel «caliente» (cada ejecución paga ~2,5 s de import de build123d); selección de aristas en el visor; estado «Corrigiendo» / «agente editando» en vivo.

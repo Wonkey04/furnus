@@ -40,7 +40,7 @@ console.error("[mcp] Furnus MCP listo (stdio)");
 
 // Latido para que la pantalla «Conectar agente» vea que hay un agente.
 const latido = () => post("/interno/agente", { cliente: servidor.server.getClientVersion()?.name ?? "Agente MCP" });
-void latido();
+servidor.server.oninitialized = () => void latido();
 setInterval(latido, 8000).unref();
 
 process.on("exit", () => kernel.detener());

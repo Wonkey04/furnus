@@ -34,7 +34,7 @@ Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final,
 - [x] `packages/mcp-server` con las 4 tools sobre los casos de uso
 - [x] Descripciones claras y un ejemplo de script en la descripción de `ejecutar_script`
 - [x] Respuesta de `ejecutar_script` con errores, medidas y validez (el feedback que cierra el bucle)
-- [ ] Probar que Claude Desktop (o Cursor) lo conecta
+- [ ] Probar que Claude Desktop (o Cursor) lo conecta — pendiente: verificado por protocolo, no con el cliente real
 
 ## 6. API
 - [x] HTTP: listar proyectos, estado de una pieza, servir la malla, cambiar parámetro, exportar
@@ -50,8 +50,8 @@ Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final,
 - [x] Revisar a 400px de ancho
 
 ## 8. Demo y cierre
-- [ ] Con un agente real, pedir una carcasa simple y llegar a un STEP válido sin tocar código
-- [ ] Abrir el STEP en otro CAD (FreeCAD, Fusion u otro) y confirmar que carga y mide bien
-- [ ] Probar al menos un error inducido para ver que el agente se corrige con el feedback
-- [ ] Escribir `docs/REPORTE_FASE_01.md`: qué se hizo, qué falló, cuántos intentos necesitó el agente, qué se aprendió y qué recomendás para la fase 02
+- [ ] Con un agente real, pedir una carcasa simple y llegar a un STEP válido sin tocar código — parcial: lo hizo Claude por el MCP stdio, falta Claude Desktop real (ver reporte)
+- [ ] Abrir el STEP en otro CAD (FreeCAD, Fusion u otro) y confirmar que carga y mide bien — pendiente: solo reimportado con OpenCascade
+- [x] Probar al menos un error inducido para ver que el agente se corrige con el feedback
+- [x] Escribir `docs/REPORTE_FASE_01.md`: qué se hizo, qué falló, cuántos intentos necesitó el agente, qué se aprendió y qué recomendás para la fase 02
 - [ ] Parar y esperar la revisión de Matías
