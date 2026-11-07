@@ -7,7 +7,10 @@ _validaciones: list[dict] = []
 
 
 class ParametroFueraDeRango(ValueError):
-    pass
+    sugerencia = (
+        "Pasá un valor dentro del rango declarado en param(). Si el rango del script es demasiado "
+        "estricto, ampliá min/max en el script."
+    )
 
 
 def _reiniciar(valores: dict | None = None) -> None:

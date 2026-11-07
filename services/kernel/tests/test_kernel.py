@@ -172,3 +172,63 @@ def test_step_en_pulgadas_conserva_el_tamano_y_se_etiqueta(tmp_path):
     assert "CONVERSION_BASED_UNIT('INCH'" in Path(r["step"]["ruta"]).read_text(errors="ignore")
     forma = import_step(r["step"]["ruta"])
     assert forma.bounding_box().size.X == pytest.approx(60.0, abs=1e-3)
+
+
+# --- Fase 02: errores con contexto (el agente corrige sin leer el repo) ---
+
+CAJA_CHICA = """
+from furnus import validar
+from build123d import *
+
+with BuildPart() as pieza:
+    Box(20, 20, 10)
+    fillet(pieza.edges(), radius=15)
+
+resultado = pieza.part
+validar(resultado)
+"""
+
+
+def test_filete_imposible_informa_el_radio_maximo():
+    r = correr(CAJA_CHICA)
+    assert r["ok"] is False
+    e = r["error"]
+    assert "radio máximo" in e["mensaje"] and "4,9" in e["mensaje"]
+    assert "4,9" in e["sugerencia"]
+    assert e["linea"] == 7
+
+
+def test_filete_posible_sigue_funcionando():
+    r = correr(CAJA_CHICA.replace("radius=15", "radius=4"))
+    assert r["ok"] is True
+
+
+def test_metodo_inexistente_sugiere_el_nombre_parecido():
+    r = correr("from build123d import *\nwith BuildPart() as p:\n    Box(1,1,1)\nresultado = p.part.volumen\n")
+    assert r["ok"] is False
+    assert "volume" in r["error"]["sugerencia"]
+
+
+def test_argumento_inexistente_muestra_la_firma():
+    r = correr("from build123d import *\nwith BuildPart() as p:\n    Box(20, 20, 10, anchura=3)\nresultado = p.part\n")
+    assert r["ok"] is False
+    assert "Box(" in r["error"]["sugerencia"] and "length" in r["error"]["sugerencia"]
+
+
+def test_nombre_sin_definir_sugiere_parecidos():
+    r = correr("from build123d import *\nwith BuildPart() as p:\n    Boxx(1, 1, 1)\nresultado = p.part\n")
+    assert r["ok"] is False
+    assert "Box" in r["error"]["sugerencia"]
+
+
+def test_import_prohibido_trae_sugerencia():
+    r = correr("import os\nfrom build123d import *\n")
+    assert r["error"]["tipo"] == "ScriptProhibido"
+    assert "build123d, math y furnus" in r["error"]["sugerencia"]
+
+
+def test_parametro_fuera_de_rango_trae_sugerencia():
+    r = correr(CAJA, {"largo": 500})
+    assert r["ok"] is False
+    assert "entre 10 y 200" in r["error"]["mensaje"]
+    assert "rango" in r["error"]["sugerencia"]

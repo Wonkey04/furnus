@@ -85,7 +85,9 @@ def main() -> int:
     import furnus  # noqa: F401
     from furnus import _contexto
     from furnus._geometria import motivos_de_invalidez
+    from furnus_kernel import sugerencias
 
+    sugerencias.instalar(build123d)
     _bloquear_red()
     _contexto._reiniciar(pedido.get("parametros") or {})
 
@@ -94,7 +96,10 @@ def main() -> int:
         exec(compile(script, "<script>", "exec"), entorno)
     except BaseException as exc:  # noqa: BLE001 - se informa todo al agente
         texto, linea = _traceback_legible(exc, script)
-        resultado["error"] = {"tipo": type(exc).__name__, "mensaje": str(exc), "linea": linea, "traceback": texto}
+        resultado["error"] = {
+            "tipo": type(exc).__name__, "mensaje": str(exc), "linea": linea, "traceback": texto,
+            "sugerencia": sugerencias.sugerir(exc, entorno, build123d),
+        }
         resultado["parametros"] = list(_contexto._declarados.values())
         (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
         return 0

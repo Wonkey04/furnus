@@ -16,9 +16,17 @@ NOMBRES_PROHIBIDOS = {
 class Problema:
     linea: int
     mensaje: str
+    sugerencia: str | None = None
 
     def texto(self) -> str:
         return f"línea {self.linea}: {self.mensaje}"
+
+
+_SUG_IMPORT = (
+    "Quitá ese import. El sandbox no tiene archivos, red ni sistema: la pieza se arma solo con "
+    "build123d, math y furnus (param, sel, validar)."
+)
+_SUG_NOMBRE = "Quitá esa línea: el sandbox no da acceso a archivos, red, sistema ni introspección."
 
 
 def analizar(script: str) -> list[Problema]:
@@ -33,17 +41,17 @@ def analizar(script: str) -> list[Problema]:
             for a in nodo.names:
                 raiz = a.name.split(".")[0]
                 if raiz not in IMPORTS_PERMITIDOS:
-                    problemas.append(Problema(linea, _import(raiz)))
+                    problemas.append(Problema(linea, _import(raiz), _SUG_IMPORT))
         elif isinstance(nodo, ast.ImportFrom):
             raiz = (nodo.module or "").split(".")[0]
             if nodo.level or raiz not in IMPORTS_PERMITIDOS:
-                problemas.append(Problema(linea, _import(raiz or ".")))
+                problemas.append(Problema(linea, _import(raiz or "."), _SUG_IMPORT))
         elif isinstance(nodo, ast.Name) and nodo.id in NOMBRES_PROHIBIDOS:
-            problemas.append(Problema(linea, f"«{nodo.id}» no está permitido en el sandbox."))
+            problemas.append(Problema(linea, f"«{nodo.id}» no está permitido en el sandbox.", _SUG_NOMBRE))
         elif isinstance(nodo, ast.Attribute) and (
             nodo.attr.startswith("__") or nodo.attr in NOMBRES_PROHIBIDOS
         ):
-            problemas.append(Problema(linea, f"El acceso a «.{nodo.attr}» no está permitido en el sandbox."))
+            problemas.append(Problema(linea, f"El acceso a «.{nodo.attr}» no está permitido en el sandbox.", _SUG_NOMBRE))
     return problemas
 
 

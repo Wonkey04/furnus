@@ -24,10 +24,15 @@ def _memoria_mb() -> int:
     return int(os.environ.get("FURNUS_MEMORIA_MB", "2048"))
 
 
-def _error(tipo: str, mensaje: str, traceback: str | None = None, linea: int | None = None) -> dict:
+def _error(
+    tipo: str, mensaje: str, traceback: str | None = None, linea: int | None = None, sugerencia: str | None = None
+) -> dict:
     return {
         "ok": False, "malla": None, "medidas": None, "valida": False, "motivos": [], "parametros": [],
-        "error": {"tipo": tipo, "mensaje": mensaje, "linea": linea, "traceback": traceback or mensaje},
+        "error": {
+            "tipo": tipo, "mensaje": mensaje, "linea": linea, "traceback": traceback or mensaje,
+            "sugerencia": sugerencia,
+        },
     }
 
 
@@ -82,7 +87,7 @@ def ejecutar(pedido: dict, directorio_salida: str | None = None) -> dict:
     problemas = analisis.analizar(script)
     if problemas:
         texto = "El script no pasó el análisis previo:\n" + "\n".join("  " + p.texto() for p in problemas)
-        return _error("ScriptProhibido", problemas[0].mensaje, texto, problemas[0].linea)
+        return _error("ScriptProhibido", problemas[0].mensaje, texto, problemas[0].linea, problemas[0].sugerencia)
 
     salida = Path(directorio_salida) if directorio_salida else Path(tempfile.mkdtemp(prefix="furnus-"))
     salida.mkdir(parents=True, exist_ok=True)
