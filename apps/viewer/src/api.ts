@@ -33,6 +33,20 @@ export interface EstadoAgente {
   cliente: string | null;
 }
 
+/** Misma forma que los eventos y la conversación de @furnus/agente (se repite acá para no traer ese paquete al navegador). */
+export type EventoChat =
+  | { tipo: "inicio"; texto: string }
+  | { tipo: "texto"; delta: string }
+  | { tipo: "herramienta"; id: string; nombre: string; estado: "ejecutando" | "ok" | "error"; resumen?: string }
+  | { tipo: "error"; mensaje: string }
+  | { tipo: "fin"; cancelado?: boolean };
+
+export type ItemChat =
+  | { tipo: "usuario"; texto: string }
+  | { tipo: "asistente"; texto: string }
+  | { tipo: "herramienta"; id: string; nombre: string; estado: "ejecutando" | "ok" | "error"; resumen?: string }
+  | { tipo: "error"; mensaje: string };
+
 export class ErrorApi extends Error {
   constructor(
     readonly codigo: string,
@@ -65,6 +79,10 @@ export const api = {
   irARevision: (id: string, destino: "deshacer" | "rehacer" | number) =>
     pedir<SalidaEjecucion>(`/api/piezas/${id}/revision`, { method: "POST", body: JSON.stringify({ destino }) }),
   agente: () => pedir<EstadoAgente>("/api/agente"),
+  chatEstado: () => pedir<{ disponible: boolean; modelo: string | null }>("/api/chat/estado"),
+  chat: (id: string) => pedir<{ ocupado: boolean; transcripto: ItemChat[] }>(`/api/piezas/${id}/chat`),
+  enviarChat: (id: string, texto: string) => pedir<{ ok: true }>(`/api/piezas/${id}/chat`, { method: "POST", body: JSON.stringify({ texto }) }),
+  cancelarChat: (id: string) => pedir<{ ok: true }>(`/api/piezas/${id}/chat/cancelar`, { method: "POST", body: "{}" }),
   async exportar(id: string, formato: "step", unidad: "mm" | "in"): Promise<{ blob: Blob; nombre: string }> {
     const r = await fetch(`/api/piezas/${id}/exportar`, {
       method: "POST",
@@ -83,7 +101,8 @@ export const api = {
 export type EventoSocket =
   | { tipo: "pieza_creada"; piezaId: string }
   | { tipo: "pieza_actualizada"; piezaId: string; motivo: string }
-  | { tipo: "agente"; conectado: boolean; cliente: string | null };
+  | { tipo: "agente"; conectado: boolean; cliente: string | null }
+  | { tipo: "chat"; piezaId: string; evento: EventoChat };
 
 /** Se suscribe al WebSocket de la API y reconecta solo. */
 export function useEventos(alRecibir: (e: EventoSocket) => void): void {

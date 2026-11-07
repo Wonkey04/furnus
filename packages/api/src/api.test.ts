@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CASOS_CONTRATO, KernelFalso, RelojFijo, RepositorioEnMemoria, SCRIPT_CAJA } from "@furnus/app";
+import type { AgentePuerto, EventoChat } from "@furnus/agente";
 import type { FastifyInstance } from "fastify";
 import { HubEventos, PresenciaAgente, crearServidor } from "./servidor.js";
 
@@ -108,5 +109,104 @@ describe("agente y eventos", () => {
     expect(tipos[0]).toMatchObject({ motivo: "script" });
     expect(tipos.map((t) => t.tipo)).toContain("pieza_creada");
     expect(tipos.at(-1)).toMatchObject({ tipo: "pieza_actualizada", motivo: "script" });
+  });
+});
+
+describe("chat con el agente embebido", () => {
+  class AgenteFalso implements AgentePuerto {
+    modelo = "modelo-falso";
+    ocupado = false;
+    cancelado = false;
+    envios: string[] = [];
+    liberar: () => void = () => undefined;
+    constructor(public disponible = true) {}
+    estado() {
+      return { ocupado: this.ocupado, transcripto: [{ tipo: "usuario" as const, texto: "hola" }] };
+    }
+    async enviar(_id: string, texto: string, emitir: (e: EventoChat) => void) {
+      this.envios.push(texto);
+      this.ocupado = true;
+      emitir({ tipo: "inicio", texto });
+      emitir({ tipo: "texto", delta: "listo" });
+      await new Promise<void>((r) => (this.liberar = r));
+      this.ocupado = false;
+      emitir({ tipo: "fin" });
+    }
+    cancelar() {
+      this.cancelado = true;
+      this.liberar();
+    }
+  }
+
+  let agente: AgenteFalso;
+  let chat: FastifyInstance;
+  let id: string;
+  const recibidos: { tipo: string; piezaId?: string; evento?: { tipo: string } }[] = [];
+
+  async function levantar(disponible = true) {
+    agente = new AgenteFalso(disponible);
+    recibidos.length = 0;
+    const h = new HubEventos();
+    h.agregar({ send: (d) => recibidos.push(JSON.parse(d)), on: () => undefined, readyState: 1 });
+    const r = new RepositorioEnMemoria();
+    chat = await crearServidor({
+      deps: { kernel: new KernelFalso(() => CASOS_CONTRATO[0]!.respuestaFalsa), repositorio: r, reloj: new RelojFijo() },
+      hub: h,
+      crearAgente: () => agente,
+    });
+    id = ((await chat.inject({ method: "POST", url: "/api/piezas", payload: { nombre: "Mesa" } })).json() as { id: string }).id;
+  }
+  afterEach(() => chat?.close());
+
+  it("informa si el chat está disponible y con qué modelo", async () => {
+    await levantar();
+    expect((await chat.inject({ url: "/api/chat/estado" })).json()).toEqual({ disponible: true, modelo: "modelo-falso" });
+    // el servidor de los otros tests no tiene agente
+    expect((await app.inject({ url: "/api/chat/estado" })).json()).toEqual({ disponible: false, modelo: null });
+  });
+
+  it("acepta el mensaje enseguida y manda el avance por el WebSocket", async () => {
+    await levantar();
+    const r = await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "  hacé una mesa  " } });
+    expect(r.statusCode).toBe(202);
+    await new Promise((res) => setTimeout(res, 10));
+    expect(agente.envios).toEqual(["hacé una mesa"]);
+    const eventos = recibidos.filter((e) => e.tipo === "chat");
+    expect(eventos.map((e) => e.evento?.tipo)).toEqual(["inicio", "texto"]);
+    expect(eventos[0]!.piezaId).toBe(id);
+    agente.liberar();
+    await new Promise((res) => setTimeout(res, 10));
+    expect(recibidos.filter((e) => e.tipo === "chat").at(-1)!.evento!.tipo).toBe("fin");
+  });
+
+  it("rechaza mientras el agente trabaja (409), mensajes vacíos (400) y piezas que no existen (404)", async () => {
+    await levantar();
+    await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "uno" } });
+    await new Promise((res) => setTimeout(res, 10));
+    const ocupado = await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "dos" } });
+    expect(ocupado.statusCode).toBe(409);
+    expect(ocupado.json().error.codigo).toBe("OCUPADO");
+    expect((await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "  " } })).statusCode).toBe(400);
+    expect((await chat.inject({ method: "POST", url: "/api/piezas/nada/chat", payload: { texto: "x" } })).statusCode).toBe(404);
+    agente.liberar();
+  });
+
+  it("sin clave devuelve 503 con la instrucción para ponerla", async () => {
+    await levantar(false);
+    const r = await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "hola" } });
+    expect(r.statusCode).toBe(503);
+    expect(r.json().error).toMatchObject({ codigo: "SIN_CLAVE" });
+    expect(r.json().error.mensaje).toContain("ANTHROPIC_API_KEY");
+  });
+
+  it("devuelve la conversación guardada y permite cancelar", async () => {
+    await levantar();
+    expect((await chat.inject({ url: `/api/piezas/${id}/chat` })).json()).toEqual({
+      ocupado: false,
+      transcripto: [{ tipo: "usuario", texto: "hola" }],
+    });
+    await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "uno" } });
+    await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat/cancelar` });
+    expect(agente.cancelado).toBe(true);
   });
 });

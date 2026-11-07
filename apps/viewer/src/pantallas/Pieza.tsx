@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ErrorApi, api, useAgente, useEventos, type EstadoPieza } from "../api";
 import { Encabezado } from "../componentes/Basicos";
 import { DialogoExportar } from "../componentes/DialogoExportar";
+import { PanelChat } from "../componentes/PanelChat";
 import { ActividadAgente, ArbolRevisiones, PanelParametros } from "../componentes/PanelesPieza";
 import { VISTAS, Visor3D, type Vista } from "../componentes/Visor3D";
 
@@ -120,7 +121,7 @@ export function PantallaPieza() {
             {sinScript && (
               <div className="vacio-pieza" role="status">
                 <h2>Esperando al agente</h2>
-                <p className="secundario">Esta pieza todavía no tiene script. Pedile a tu agente que la diseñe.</p>
+                <p className="secundario">Esta pieza todavía no tiene script. Pedísela al chat o a tu agente.</p>
                 {!agente.conectado && <Link to="/conectar" className="btn">Conectar agente</Link>}
               </div>
             )}
@@ -157,6 +158,7 @@ export function PantallaPieza() {
         </section>
 
         <div className="columna-der">
+          <PanelChat piezaId={id} />
           <PanelParametros parametros={r?.parametros ?? []} ocupado={ocupado} errores={erroresParam} alCambiar={cambiarParametro} />
           <ActividadAgente actividad={pieza.actividad} />
         </div>

@@ -18,6 +18,7 @@ import {
   type FormatoExportacion,
 } from "@furnus/app";
 import { ErrorDeDominio, type Pieza } from "@furnus/core";
+import type { AgentePuerto, EventoChat } from "@furnus/agente";
 
 type Socket = { send(data: string): void; on(ev: string, fn: () => void): void; readyState: number };
 
@@ -28,7 +29,9 @@ export class HubEventos implements EventosPort {
     this.sockets.add(s);
     s.on("close", () => this.sockets.delete(s));
   }
-  publicar(evento: EventoPieza | { tipo: "agente"; conectado: boolean; cliente: string | null }): void {
+  publicar(
+    evento: EventoPieza | { tipo: "agente"; conectado: boolean; cliente: string | null } | { tipo: "chat"; piezaId: string; evento: EventoChat },
+  ): void {
     const texto = JSON.stringify(evento);
     for (const s of this.sockets) if (s.readyState === 1) s.send(texto);
   }
@@ -90,6 +93,8 @@ export interface OpcionesServidor {
   presencia?: PresenciaAgente;
   /** Carpeta raíz del repo; el visor la usa para armar la configuración MCP. */
   raiz?: string;
+  /** Arma el agente del chat con las dependencias ya conectadas al hub de eventos. Sin esto no hay chat. */
+  crearAgente?: (deps: Dependencias) => AgentePuerto;
 }
 
 export async function crearServidor(opciones: OpcionesServidor): Promise<FastifyInstance> {
@@ -100,6 +105,7 @@ export async function crearServidor(opciones: OpcionesServidor): Promise<Fastify
   await app.register(cors, { origin: [/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/], methods: ["GET", "POST", "PUT"] });
   await app.register(websocket);
 
+  const agenteChat = opciones.crearAgente?.(deps) ?? null;
   const consultar = new ConsultarEstado(deps);
   const timer = setInterval(() => {
     const c = presencia.cambio();
@@ -200,6 +206,43 @@ export async function crearServidor(opciones: OpcionesServidor): Promise<Fastify
       }
     },
   );
+
+  // --- Chat con el agente embebido: el pedido vuelve enseguida y el avance viaja por el WebSocket ---
+  app.get("/api/chat/estado", async () => ({ disponible: agenteChat?.disponible ?? false, modelo: agenteChat?.modelo ?? null }));
+
+  app.get<{ Params: { id: string } }>("/api/piezas/:id/chat", async (req, reply) => {
+    if (!agenteChat) return { ocupado: false, transcripto: [] };
+    if (!(await deps.repositorio.obtener(req.params.id))) {
+      return reply.code(404).send({ error: { codigo: "PIEZA_NO_ENCONTRADA", mensaje: `No existe la pieza «${req.params.id}».` } });
+    }
+    return agenteChat.estado(req.params.id);
+  });
+
+  app.post<{ Params: { id: string }; Body: { texto?: string } }>("/api/piezas/:id/chat", async (req, reply) => {
+    const texto = typeof req.body?.texto === "string" ? req.body.texto.trim() : "";
+    if (!texto) return reply.code(400).send({ error: { codigo: "PEDIDO_INVALIDO", mensaje: "Escribí un mensaje." } });
+    if (!agenteChat?.disponible) {
+      return reply.code(503).send({
+        error: { codigo: "SIN_CLAVE", mensaje: "El chat necesita ANTHROPIC_API_KEY en el archivo .env. Reiniciá «pnpm dev» después de ponerla." },
+      });
+    }
+    const id = req.params.id;
+    if (!(await deps.repositorio.obtener(id))) {
+      return reply.code(404).send({ error: { codigo: "PIEZA_NO_ENCONTRADA", mensaje: `No existe la pieza «${id}».` } });
+    }
+    if (agenteChat.estado(id).ocupado) {
+      return reply.code(409).send({ error: { codigo: "OCUPADO", mensaje: "El agente todavía está trabajando en el mensaje anterior." } });
+    }
+    void agenteChat.enviar(id, texto, (evento) => hub.publicar({ tipo: "chat", piezaId: id, evento })).catch((e: unknown) => {
+      hub.publicar({ tipo: "chat", piezaId: id, evento: { tipo: "error", mensaje: e instanceof Error ? e.message : String(e) } });
+    });
+    return reply.code(202).send({ ok: true });
+  });
+
+  app.post<{ Params: { id: string } }>("/api/piezas/:id/chat/cancelar", async (req) => {
+    agenteChat?.cancelar(req.params.id);
+    return { ok: true };
+  });
 
   app.get("/api/configuracion", async () => ({ raiz: opciones.raiz ?? null }));
 
