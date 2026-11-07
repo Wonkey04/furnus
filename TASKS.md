@@ -20,15 +20,15 @@ Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final,
 - [x] Tests: script válido, script con error, script con import prohibido, timeout, pieza inválida
 
 ## 3. Dominio y aplicación (TypeScript)
-- [ ] `Pieza`, `Revision`, `Parametro` en `packages/core`
-- [ ] Puertos `KernelPort` y `RepositorioPort`
-- [ ] Casos de uso: `EjecutarScript`, `CambiarParametro`, `ConsultarEstado`, `Exportar`
-- [ ] `KernelPort` falso para tests; tests de dominio sin levantar nada
-- [ ] Tests de contrato que corren la misma batería contra el kernel real
+- [x] `Pieza`, `Revision`, `Parametro` en `packages/core`
+- [x] Puertos `KernelPort` y `RepositorioPort`
+- [x] Casos de uso: `EjecutarScript`, `CambiarParametro`, `ConsultarEstado`, `Exportar`
+- [x] `KernelPort` falso para tests; tests de dominio sin levantar nada
+- [x] Tests de contrato que corren la misma batería contra el kernel real
 
 ## 4. Persistencia local
-- [ ] `adapter-local` implementa `RepositorioPort` con la estructura de `ARCHITECTURE.md`
-- [ ] Tests: guardar, cargar, volver a una revisión anterior
+- [x] `adapter-local` implementa `RepositorioPort` con la estructura de `ARCHITECTURE.md`
+- [x] Tests: guardar, cargar, volver a una revisión anterior
 
 ## 5. MCP
 - [ ] `packages/mcp-server` con las 4 tools sobre los casos de uso

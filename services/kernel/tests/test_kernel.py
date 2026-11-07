@@ -163,3 +163,12 @@ def test_step_se_puede_reimportar(tmp_path):
     forma = import_step(r["step"]["ruta"])
     assert forma.volume == pytest.approx(r["medidas"]["volumen"], rel=1e-6)
     assert forma.is_valid
+
+
+def test_step_en_pulgadas_conserva_el_tamano_y_se_etiqueta(tmp_path):
+    from build123d import import_step
+
+    r = sandbox.ejecutar({"script": CAJA, "salidas": ["step"], "unidad": "in"}, str(tmp_path))
+    assert "CONVERSION_BASED_UNIT('INCH'" in Path(r["step"]["ruta"]).read_text(errors="ignore")
+    forma = import_step(r["step"]["ruta"])
+    assert forma.bounding_box().size.X == pytest.approx(60.0, abs=1e-3)

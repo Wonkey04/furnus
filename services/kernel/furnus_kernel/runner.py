@@ -55,6 +55,23 @@ def _traceback_legible(exc: BaseException, script: str) -> tuple[str, int | None
     return texto, linea
 
 
+def _exportar_step(forma, ruta: str, unidad: str) -> None:
+    import build123d
+
+    if unidad == "in":
+        # La geometría sigue en mm; el archivo se etiqueta en pulgadas y OpenCascade convierte los valores.
+        from OCP.Interface import Interface_Static
+        from OCP.STEPControl import STEPControl_AsIs, STEPControl_Writer
+
+        escritor = STEPControl_Writer()
+        Interface_Static.SetCVal_s("write.step.unit", "INCH")
+        escritor.Transfer(forma.wrapped, STEPControl_AsIs)
+        escritor.Write(ruta)
+        Interface_Static.SetCVal_s("write.step.unit", "MM")
+    else:
+        build123d.export_step(forma, ruta)
+
+
 def main() -> int:
     pedido = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
     salida = Path(sys.argv[2])
@@ -113,7 +130,7 @@ def main() -> int:
             build123d.export_gltf(forma, str(salida / "pieza.glb"), binary=True)
             resultado["malla"] = {"formato": "glb", "ruta": str(salida / "pieza.glb")}
         if "step" in salidas:
-            build123d.export_step(forma, str(salida / "pieza.step"))
+            _exportar_step(forma, str(salida / "pieza.step"), pedido.get("unidad", "mm"))
             resultado["step"] = {"formato": "step", "ruta": str(salida / "pieza.step")}
         if "stl" in salidas:
             build123d.export_stl(forma, str(salida / "pieza.stl"))
