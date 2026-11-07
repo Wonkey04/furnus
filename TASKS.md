@@ -7,13 +7,14 @@ Criterio de cierre: los 4 casos de prueba (ambiguo, error imposible, error con a
 - [x] 2. `cambiar_parametros(pieza, valores)` con revisión nueva
 - [x] 3. Descripción de `ejecutar_script`: suposiciones, cuándo preguntar, pedidos imposibles
 - [x] 4. Sin piezas huérfanas
+- [x] 6. Chat embebido en el visor: panel «Chat» junto a la pieza, streaming por WebSocket, clave en `.env`
 - [x] 7. Renderizador: `renderizar` devuelve PNG de iso / frente / arriba / derecha
 - [x] 5. Kernel persistente: ~3 s → ~0,03 s por ejecución en caliente (el primer arranque sigue pagando el import)
 
 ## Pendientes
-- [ ] 6. Chat embebido en el visor (API de Anthropic, streaming, clave en `.env`)
 
 ## Pruebas con agente real (necesitan a Matías)
+- [ ] Probar el chat del visor con una clave real de Anthropic (hasta ahora solo contra un servidor falso local)
 - [ ] Reiniciar el cliente MCP (carga la tool nueva) y repetir «poné el espesor en 30» con id explícito
 - [ ] Error con arreglo posible, sin que el agente lea el repo
 - [ ] Abrir un STEP en FreeCAD o Fusion y probar el STEP en pulgadas
