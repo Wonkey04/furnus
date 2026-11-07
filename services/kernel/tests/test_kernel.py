@@ -232,3 +232,49 @@ def test_parametro_fuera_de_rango_trae_sugerencia():
     assert r["ok"] is False
     assert "entre 10 y 200" in r["error"]["mensaje"]
     assert "rango" in r["error"]["sugerencia"]
+
+
+# --- Fase 02: kernel persistente ---
+
+def test_segunda_ejecucion_es_rapida_porque_el_kernel_ya_esta_caliente():
+    import time
+
+    correr(CAJA)  # la primera puede pagar el import de build123d
+    t = time.perf_counter()
+    r = correr(CAJA, {"largo": 90})
+    assert r["ok"] is True and r["medidas"]["caja"][0] == 90.0
+    assert time.perf_counter() - t < 1.0
+
+
+def test_no_se_filtra_estado_entre_ejecuciones():
+    correr(CAJA, {"largo": 150})
+    r = correr(CAJA)
+    assert r["medidas"]["caja"][0] == 60.0  # vuelve al valor por defecto, no al de la corrida anterior
+    r = correr("x_filtrada = 1\nresultado = None\n")
+    r2 = correr("resultado = x_filtrada\n")
+    assert r2["error"]["tipo"] == "NameError"
+
+
+def test_print_y_salida_de_c_no_rompen_el_protocolo():
+    r = correr('print("hola")\n' + CAJA)
+    assert r["ok"] is True
+    assert correr(CAJA)["ok"] is True
+
+
+def test_se_recupera_despues_de_un_timeout(monkeypatch):
+    monkeypatch.setenv("FURNUS_TIMEOUT_S", "2")
+    assert correr("while True:\n    pass")["error"]["tipo"] == "Timeout"
+    monkeypatch.setenv("FURNUS_TIMEOUT_S", "60")
+    assert correr(CAJA)["ok"] is True
+
+
+def test_se_recupera_despues_de_quedarse_sin_memoria(monkeypatch):
+    monkeypatch.setenv("FURNUS_MEMORIA_MB", "400")
+    assert correr("x = []\nwhile True:\n    x.append(bytearray(50_000_000))")["ok"] is False
+    monkeypatch.setenv("FURNUS_MEMORIA_MB", "2048")
+    assert correr(CAJA)["ok"] is True
+
+
+def test_el_modo_suelto_sigue_andando(monkeypatch):
+    monkeypatch.setenv("FURNUS_KERNEL_PERSISTENTE", "0")
+    assert correr(CAJA)["ok"] is True

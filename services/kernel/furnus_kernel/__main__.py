@@ -40,6 +40,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     puerto = int(os.environ.get("FURNUS_KERNEL_PORT", "4020"))
+    sandbox.precalentar()
     servidor = ThreadingHTTPServer(("127.0.0.1", puerto), Handler)
     print(f"[kernel] escuchando en http://127.0.0.1:{puerto}", flush=True)
     servidor.serve_forever()

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import builtins
 import json
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -72,23 +73,38 @@ def _exportar_step(forma, ruta: str, unidad: str) -> None:
         build123d.export_step(forma, ruta)
 
 
-def main() -> int:
-    pedido = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-    salida = Path(sys.argv[2])
-    salida.mkdir(parents=True, exist_ok=True)
-    script = pedido["script"]
-    resultado: dict = {"ok": False, "error": None}
+_preparado = False
 
-    # Se importa todo lo pesado ANTES de recortar los builtins y bloquear la red.
+
+def precalentar() -> None:
+    """Importa todo lo pesado (build123d, ~3 s) una sola vez por proceso, ANTES de bloquear la red."""
+    global _preparado
+    if _preparado:
+        return
     sys.path.insert(0, str(RAIZ))
     import build123d  # noqa: F401
     import furnus  # noqa: F401
-    from furnus import _contexto
-    from furnus._geometria import motivos_de_invalidez
+    from furnus import _contexto  # noqa: F401
+    from furnus._geometria import motivos_de_invalidez  # noqa: F401
     from furnus_kernel import sugerencias
 
     sugerencias.instalar(build123d)
     _bloquear_red()
+    _preparado = True
+
+
+def procesar(pedido: dict, salida: Path) -> None:
+    """Corre un pedido y deja resultado.json en `salida`. Lo usan el modo suelto y el trabajador."""
+    precalentar()
+    import build123d
+    from furnus import _contexto
+    from furnus._geometria import motivos_de_invalidez
+    from furnus_kernel import sugerencias
+
+    salida.mkdir(parents=True, exist_ok=True)
+    script = pedido["script"]
+    resultado: dict = {"ok": False, "error": None}
+    (salida / "resultado.json").unlink(missing_ok=True)
     _contexto._reiniciar(pedido.get("parametros") or {})
 
     entorno = {"__builtins__": _builtins_seguros(), "__name__": "__furnus_script__"}
@@ -102,7 +118,7 @@ def main() -> int:
         }
         resultado["parametros"] = list(_contexto._declarados.values())
         (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
-        return 0
+        return
 
     resultado["parametros"] = list(_contexto._declarados.values())
     pieza = entorno.get("resultado")
@@ -120,7 +136,7 @@ def main() -> int:
             "traceback": motivos[0] + " Terminá el script con: resultado = pieza.part",
         }
         (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
-        return 0
+        return
 
     forma = getattr(pieza, "part", pieza)
     bb = forma.bounding_box()
@@ -147,8 +163,38 @@ def main() -> int:
             "traceback": f"No se pudo exportar la pieza: {type(exc).__name__}: {exc}",
         }
     (salida / "resultado.json").write_text(json.dumps(resultado, ensure_ascii=False), encoding="utf-8")
+
+
+def main() -> int:
+    procesar(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")), Path(sys.argv[2]))
+    return 0
+
+
+def servir() -> int:
+    """Trabajador persistente: build123d ya importado, un pedido por línea de stdin, "OK" por stdout."""
+    # OpenCascade escribe a stdout desde C++: el canal del protocolo es un descriptor aparte.
+    canal = os.fdopen(os.dup(1), "w", encoding="utf-8")
+    os.dup2(os.open(os.devnull, os.O_WRONLY), 1)
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    precalentar()
+    canal.write("LISTO\n")
+    canal.flush()
+    for linea in sys.stdin:
+        if not linea.strip():
+            continue
+        orden = json.loads(linea)
+        salida = Path(orden["salida"])
+        try:
+            procesar(json.loads(Path(orden["pedido"]).read_text(encoding="utf-8")), salida)
+        except BaseException as exc:  # noqa: BLE001 - el trabajador no debe morir por un script
+            error = {"tipo": type(exc).__name__, "mensaje": str(exc), "linea": None, "traceback": str(exc), "sugerencia": None}
+            (salida / "resultado.json").write_text(
+                json.dumps({"ok": False, "error": error, "parametros": []}, ensure_ascii=False), encoding="utf-8"
+            )
+        canal.write("OK\n")
+        canal.flush()
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(servir() if len(sys.argv) > 1 and sys.argv[1] == "--servir" else main())
