@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import {
+  CambiarParametros,
   CrearPieza,
   EjecutarScript,
   Exportar,
@@ -9,6 +10,7 @@ import {
   type Dependencias,
 } from "@furnus/app";
 import { ErrorDeDominio } from "@furnus/core";
+import type { EventoPieza } from "@furnus/app";
 
 export const EJEMPLO_SCRIPT = `from furnus import param, sel, validar
 from build123d import *
@@ -33,7 +35,15 @@ Reglas del script:
 - Solo se pueden importar: build123d, math y furnus. No hay archivos, red, os ni subprocess.
 - Selectores semánticos en vez de índices: sel.aristas(pieza, "superiores" | "inferiores" | "verticales"), sel.caras(pieza, "superior" | "inferior" | "frontal" | "trasera" | "izquierda" | "derecha"), sel.agujeros(pieza).
 
-Qué devuelve (después de CADA ejecución): ok, error (tipo, mensaje, línea y traceback legible si el script falló), medidas (caja X×Y×Z, volumen, área), valida y motivos (si la geometría es un sólido válido), parametros declarados y revision. Si ok es false, la pieza anterior sigue vigente: leé el error, corregí el script y volvé a llamar. Si valida es false, arreglá la geometría antes de exportar (por ejemplo, sólidos separados).
+Cuando el pedido no trae medidas («hacé una mesa»):
+- Asumí valores típicos y razonables, sin preguntar, y declarálos todos como param() para que la persona los ajuste.
+- Al final de tu respuesta listá las suposiciones («Asumí: largo 1200 mm, alto 740 mm…») para que la persona las corrija.
+- Preguntá solo si la ambigüedad cambia la FORMA del objeto (¿con cajones o sin?), no sus dimensiones.
+- Si el pedido es imposible (un filete que no entra, una pared más gruesa que la pieza), no inventes: decí cuál es el máximo posible y preguntá si lo querés así.
+
+Para ajustar solo un valor de una pieza que ya existe, usá cambiar_parametros: no hace falta mandar el script de nuevo.
+
+Qué devuelve (después de CADA ejecución): ok, error (tipo, mensaje, línea, traceback legible y sugerencia con el límite o el nombre correcto si el script falló), medidas (caja X×Y×Z, volumen, área), valida y motivos (si la geometría es un sólido válido), parametros declarados y revision. Si ok es false, la pieza anterior sigue vigente: leé el error, corregí el script y volvé a llamar. Si valida es false, arreglá la geometría antes de exportar (por ejemplo, sólidos separados).
 
 Ejemplo:
 
@@ -64,6 +74,43 @@ export function crearServidorMcp(deps: Dependencias): McpServer {
     return { id: nueva.id, nombre: nueva.nombre };
   }
 
+  /** Para medir, exportar y cambiar parámetros: nunca crea una pieza (no hay nada que medir en una vacía). */
+  async function resolverExistente(id?: string): Promise<{ id: string; nombre: string }> {
+    if (id === "nueva") throw new ErrorDeDominio("PIEZA_NO_ENCONTRADA", "«nueva» solo sirve con ejecutar_script.");
+    const pieza = id
+      ? await deps.repositorio.obtener(id)
+      : ((await new ListarPiezas(deps).ejecutar()).find((p) => p.revisiones.length > 0) ?? null);
+    if (!pieza) {
+      throw new ErrorDeDominio(
+        "PIEZA_NO_ENCONTRADA",
+        id ? `No existe la pieza «${id}».` : "Todavía no hay ninguna pieza. Creá una con ejecutar_script.",
+      );
+    }
+    return { id: pieza.id, nombre: pieza.nombre };
+  }
+
+  /**
+   * Una pieza nueva solo existe si su primera ejecución sale bien: hasta entonces los eventos se
+   * retienen, y si falla se borra, para no dejar piezas huérfanas sin revisión válida.
+   */
+  async function ejecutarEnPiezaNueva(script: string, parametros: Record<string, number> | undefined, nombre?: string) {
+    const retenidos: EventoPieza[] = [];
+    const diferidas: Dependencias = { ...deps, eventos: { publicar: (e) => void retenidos.push(e) } };
+    const nueva = await new CrearPieza(diferidas).ejecutar({ nombre });
+    try {
+      const r = await new EjecutarScript(diferidas).ejecutar({ piezaId: nueva.id, script, parametros, origen: "agente" });
+      if (!r.ok) {
+        await deps.repositorio.borrar(nueva.id);
+        return { destino: { id: nueva.id, nombre: nueva.nombre }, r, descartada: true };
+      }
+      for (const e of retenidos) await deps.eventos.publicar(e);
+      return { destino: { id: nueva.id, nombre: nueva.nombre }, r, descartada: false };
+    } catch (e) {
+      await deps.repositorio.borrar(nueva.id);
+      throw e;
+    }
+  }
+
   const pieza = z
     .string()
     .optional()
@@ -82,8 +129,36 @@ export function crearServidorMcp(deps: Dependencias): McpServer {
     },
     async ({ script, parametros, pieza: id, nombre }) => {
       try {
+        if (id === "nueva") {
+          const { destino, r, descartada } = await ejecutarEnPiezaNueva(script, parametros, nombre);
+          const aviso = descartada
+            ? { aviso: "La pieza nueva no se guardó porque el script falló. Corregilo y mandalo de nuevo con pieza: «nueva»." }
+            : {};
+          return texto({ pieza: descartada ? null : destino, ...r, ...aviso }, !r.ok);
+        }
         const destino = await resolverPieza(id, nombre);
         const r = await new EjecutarScript(deps).ejecutar({ piezaId: destino.id, script, parametros, origen: "agente" });
+        return texto({ pieza: destino, ...r }, !r.ok);
+      } catch (e) {
+        return errorLegible(e);
+      }
+    },
+  );
+
+  servidor.registerTool(
+    "cambiar_parametros",
+    {
+      description: `Cambia el valor de uno o más parámetros (los declarados con param()) de una pieza que ya existe, sin reescribir el script. Crea una revisión nueva con el mismo script y los valores nuevos. Ejemplo: «poné el espesor en 30» → { pieza: "<id>", valores: { espesor: 30 } }.
+Pasá siempre el id de la pieza (lo devuelve ejecutar_script). Los valores tienen que estar dentro del rango min/max declarado; si no, el error dice cuál es el rango. Devuelve lo mismo que ejecutar_script: medidas, validez y parámetros vigentes. Si hace falta cambiar la forma de la pieza y no solo un valor, usá ejecutar_script.`,
+      inputSchema: {
+        pieza: z.string().describe("Id de la pieza (el que devolvió ejecutar_script)."),
+        valores: z.record(z.number()).describe("Nombre del parámetro → valor nuevo, por ejemplo { espesor: 30 }."),
+      },
+    },
+    async ({ pieza: id, valores }) => {
+      try {
+        const destino = await resolverExistente(id);
+        const r = await new CambiarParametros(deps).ejecutar({ piezaId: destino.id, valores, origen: "agente" });
         return texto({ pieza: destino, ...r }, !r.ok);
       } catch (e) {
         return errorLegible(e);
@@ -100,7 +175,7 @@ export function crearServidorMcp(deps: Dependencias): McpServer {
     },
     async ({ consulta, pieza: id }) => {
       try {
-        const destino = await resolverPieza(id);
+        const destino = await resolverExistente(id);
         return texto(await new MedirPieza(deps).ejecutar({ piezaId: destino.id, consulta }));
       } catch (e) {
         return errorLegible(e);
@@ -135,7 +210,7 @@ export function crearServidorMcp(deps: Dependencias): McpServer {
     },
     async ({ formato, unidad, pieza: id }) => {
       try {
-        const destino = await resolverPieza(id);
+        const destino = await resolverExistente(id);
         const r = await new Exportar(deps).ejecutar({ piezaId: destino.id, formato, unidad });
         return texto({ ok: true, ...r });
       } catch (e) {

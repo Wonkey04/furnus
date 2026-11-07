@@ -27,9 +27,15 @@ export function scriptActual(pieza: Pieza): string {
   return r.script;
 }
 
-export function agregarRevision(pieza: Pieza, script: string, origen: OrigenCambio, ahora: string): Pieza {
+export function agregarRevision(
+  pieza: Pieza,
+  script: string,
+  origen: OrigenCambio,
+  ahora: string,
+  valores?: Record<string, number>,
+): Pieza {
   const numero = (pieza.revisiones.at(-1)?.numero ?? 0) + 1;
-  const revision: Revision = { numero, script, origen, creadaEn: ahora };
+  const revision: Revision = { numero, script, origen, creadaEn: ahora, ...(valores ? { valores } : {}) };
   return { ...pieza, revisiones: [...pieza.revisiones, revision], revisionActual: numero, editadaEn: ahora };
 }
 

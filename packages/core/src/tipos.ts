@@ -17,6 +17,8 @@ export interface ErrorScript {
   mensaje: string;
   linea: number | null;
   traceback: string;
+  /** Qué probar para arreglarlo (límite, nombre parecido, firma correcta); null si no hay nada útil. */
+  sugerencia?: string | null;
 }
 
 export type OrigenCambio = "agente" | "persona";
@@ -26,6 +28,8 @@ export interface Revision {
   script: string;
   origen: OrigenCambio;
   creadaEn: string;
+  /** Solo en revisiones de parámetros (cambiar_parametros): los valores con los que quedó la pieza. */
+  valores?: Record<string, number>;
 }
 
 export interface ResultadoEjecucion {
@@ -40,7 +44,7 @@ export interface ResultadoEjecucion {
   ejecutadoEn: string;
 }
 
-export type Herramienta = "ejecutar_script" | "cambiar_parametro" | "medir" | "renderizar" | "exportar";
+export type Herramienta = "ejecutar_script" | "cambiar_parametro" | "cambiar_parametros" | "medir" | "renderizar" | "exportar";
 
 export interface Actividad {
   id: number;

@@ -3,6 +3,7 @@ export * from "./casos-de-uso/comunes.js";
 export * from "./casos-de-uso/piezas.js";
 export * from "./casos-de-uso/ejecutar-script.js";
 export * from "./casos-de-uso/cambiar-parametro.js";
+export * from "./casos-de-uso/cambiar-parametros.js";
 export * from "./casos-de-uso/ir-a-revision.js";
 export * from "./casos-de-uso/consultar-estado.js";
 export * from "./casos-de-uso/exportar.js";

@@ -133,6 +133,7 @@ export function PanelParametros({
 const HERRAMIENTA: Record<string, string> = {
   ejecutar_script: "ejecutar_script",
   cambiar_parametro: "cambiar_parametro",
+  cambiar_parametros: "cambiar_parametros",
   medir: "medir",
   renderizar: "renderizar",
   exportar: "exportar",

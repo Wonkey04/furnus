@@ -39,11 +39,13 @@ export class IrARevision {
       throw new ErrorDeDominio("SIN_SCRIPT", `No hay una revisión a la cual ${entrada.destino}.`);
     }
     const destino = irARevision(pieza, numero, reloj.ahora());
-    const script = destino.revisiones.find((r) => r.numero === numero)!.script;
+    const revision = destino.revisiones.find((r) => r.numero === numero)!;
+    const script = revision.script;
+    const valores = revision.valores ?? pieza.valores;
 
     const respuesta = await llamarKernel(this.deps, {
       script,
-      parametros: pieza.valores,
+      parametros: valores,
       salidas: ["malla", "medidas"],
       directorioSalida: await repositorio.rutaSalidas(pieza.id),
     });
@@ -58,7 +60,7 @@ export class IrARevision {
       await eventos.publicar({ tipo: "pieza_actualizada", piezaId: pieza.id, motivo: "error" });
       return salidaFallida(respuesta);
     }
-    pieza = { ...destino, valores: valoresVigentes(pieza.valores, respuesta.parametros), actividad: pieza.actividad };
+    pieza = { ...destino, valores: valoresVigentes(valores, respuesta.parametros), actividad: pieza.actividad };
     pieza = conResultado(pieza, aResultado(respuesta, numero, ahora));
     pieza = registrarActividad(
       pieza,

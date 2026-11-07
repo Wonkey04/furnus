@@ -28,6 +28,23 @@ export function validarCambio(declarados: Parametro[], nombre: string, valor: nu
   return p;
 }
 
+/** Valida varios cambios juntos y junta TODOS los problemas, para que el agente los corrija de una vez. */
+export function validarCambios(declarados: Parametro[], valores: Record<string, number>): void {
+  const problemas: string[] = [];
+  const nombres = declarados.map((d) => d.nombre).join(", ") || "ninguno";
+  for (const [nombre, valor] of Object.entries(valores)) {
+    const p = declarados.find((d) => d.nombre === nombre);
+    if (!p) problemas.push(`El parámetro «${nombre}» no existe. Declarados: ${nombres}.`);
+    else {
+      const motivo = motivoFueraDeRango(p, valor);
+      if (motivo) problemas.push(motivo);
+    }
+  }
+  if (problemas.length === 0) return;
+  const codigo = problemas.some((m) => m.includes("no existe")) ? "PARAMETRO_DESCONOCIDO" : "PARAMETRO_FUERA_DE_RANGO";
+  throw new ErrorDeDominio(codigo, problemas.join(" "));
+}
+
 /** Descarta valores guardados de parámetros que el script nuevo ya no declara. */
 export function valoresVigentes(valores: Record<string, number>, declarados: Parametro[]): Record<string, number> {
   const salida: Record<string, number> = {};

@@ -38,6 +38,7 @@ export interface RepositorioPort {
   obtener(id: string): Promise<Pieza | null>;
   listar(): Promise<Pieza[]>;
   guardar(pieza: Pieza): Promise<void>;
+  borrar(id: string): Promise<void>;
   /** Carpeta de salidas (malla, exportaciones) de la pieza; la crea si falta. */
   rutaSalidas(id: string): Promise<string>;
 }

@@ -36,9 +36,57 @@ async function llamar(name: string, args: Record<string, unknown>) {
 }
 
 describe("contrato del MCP", () => {
-  it("expone exactamente las 4 tools", async () => {
+  it("expone las 5 tools (las 4 originales + cambiar_parametros, decisión 27)", async () => {
     const { tools } = await cliente.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["ejecutar_script", "exportar", "medir", "renderizar"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["cambiar_parametros", "ejecutar_script", "exportar", "medir", "renderizar"]);
+  });
+
+  it("la descripción de ejecutar_script dice cómo tratar pedidos sin medidas e imposibles", async () => {
+    const t = (await cliente.listTools()).tools.find((x) => x.name === "ejecutar_script")!;
+    expect(t.description).toContain("listá las suposiciones");
+    expect(t.description).toContain("cambia la FORMA");
+    expect(t.description).toContain("máximo posible");
+  });
+
+  it("cambiar_parametros con id explícito cambia solo el parámetro y crea una revisión nueva", async () => {
+    const a = await llamar("ejecutar_script", { script: SCRIPT_CAJA });
+    const id = a.json.pieza.id as string;
+    const r = await llamar("cambiar_parametros", { pieza: id, valores: { largo: 100 } });
+    expect(r.isError).toBe(false);
+    expect(r.json).toMatchObject({ ok: true, revision: 2, medidas: { caja: [100, 40, 24] } });
+    const p = (await repo.obtener(id))!;
+    expect(p.revisiones).toHaveLength(2);
+    expect(p.revisiones[1]!.script).toBe(p.revisiones[0]!.script);
+    expect(p.revisiones[1]!.valores).toMatchObject({ largo: 100 });
+    expect(p.valores).toMatchObject({ largo: 100 });
+  });
+
+  it("cambiar_parametros explica el rango y los nombres declarados, sin tocar el kernel", async () => {
+    const a = await llamar("ejecutar_script", { script: SCRIPT_CAJA });
+    const id = a.json.pieza.id as string;
+    const fuera = await llamar("cambiar_parametros", { pieza: id, valores: { largo: 500 } });
+    expect(fuera.isError).toBe(true);
+    expect(fuera.json.error.mensaje).toContain("entre 10 y 200");
+    const mal = await llamar("cambiar_parametros", { pieza: id, valores: { espesor: 30 } });
+    expect(mal.isError).toBe(true);
+    expect(mal.json.error.mensaje).toContain("Declarados: largo, ancho");
+    expect((await repo.obtener(id))!.revisiones).toHaveLength(1);
+  });
+
+  it("un script que falla en una pieza nueva no deja una pieza huérfana", async () => {
+    const fallido = CASOS_CONTRATO.find((c) => c.espera.errorTipo === "ScriptProhibido")!;
+    const r = await llamar("ejecutar_script", { script: fallido.script, pieza: "nueva" });
+    expect(r.isError).toBe(true);
+    expect(r.json.pieza).toBeNull();
+    expect(repo.piezas.size).toBe(0);
+    expect(eventos.eventos).toEqual([]);
+  });
+
+  it("medir y exportar sin piezas no crean una pieza vacía", async () => {
+    const m = await llamar("medir", { consulta: "caja" });
+    expect(m.isError).toBe(true);
+    expect(m.json.error.codigo).toBe("PIEZA_NO_ENCONTRADA");
+    expect(repo.piezas.size).toBe(0);
   });
 
   it("la descripción de ejecutar_script incluye reglas y un ejemplo de script", async () => {

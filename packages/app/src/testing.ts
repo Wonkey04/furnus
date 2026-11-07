@@ -51,6 +51,9 @@ export class RepositorioEnMemoria implements RepositorioPort {
   async guardar(pieza: Pieza): Promise<void> {
     this.piezas.set(pieza.id, structuredClone(pieza));
   }
+  async borrar(id: string): Promise<void> {
+    this.piezas.delete(id);
+  }
   async rutaSalidas(id: string): Promise<string> {
     return `memoria/${id}/salidas`;
   }

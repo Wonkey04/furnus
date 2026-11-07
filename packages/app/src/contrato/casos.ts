@@ -14,6 +14,7 @@ export interface CasoContrato {
     caja?: [number, number, number];
     errorTipo?: string;
     errorContiene?: string;
+    sugerenciaContiene?: string;
     parametros?: string[];
   };
   respuestaFalsa: RespuestaKernel;
@@ -126,6 +127,23 @@ export const CASOS_CONTRATO: CasoContrato[] = [
       error: null,
     },
   },
+  {
+    nombre: "filete imposible informa el radio máximo",
+    script:
+      "from build123d import *\nwith BuildPart() as pieza:\n    Box(20, 20, 10)\n    fillet(pieza.edges(), radius=15)\nresultado = pieza.part\n",
+    espera: { ok: false, errorContiene: "radio máximo", sugerenciaContiene: "4,9" },
+    respuestaFalsa: {
+      ok: false,
+      ...vacia,
+      error: {
+        tipo: "ErrorConSugerencia",
+        mensaje: "No se pudo hacer el filete de 15 mm: el radio máximo para estas aristas es 4,9 mm.",
+        linea: 4,
+        traceback: "…",
+        sugerencia: "Usá un radio menor o igual a 4,9 mm, o seleccioná menos aristas.",
+      },
+    },
+  },
 ];
 
 export function verificarRespuesta(caso: CasoContrato, r: RespuestaKernel): string[] {
@@ -145,6 +163,9 @@ export function verificarRespuesta(caso: CasoContrato, r: RespuestaKernel): stri
   if (e.errorTipo && r.error?.tipo !== e.errorTipo) fallas.push(`error.tipo: esperaba ${e.errorTipo} y llegó ${r.error?.tipo}`);
   if (e.errorContiene && !r.error?.mensaje.includes(e.errorContiene)) {
     fallas.push(`error.mensaje no contiene «${e.errorContiene}»: ${r.error?.mensaje}`);
+  }
+  if (e.sugerenciaContiene && !r.error?.sugerencia?.includes(e.sugerenciaContiene)) {
+    fallas.push(`error.sugerencia no contiene «${e.sugerenciaContiene}»: ${r.error?.sugerencia}`);
   }
   if (e.parametros) {
     const nombres = r.parametros.map((p) => p.nombre);
