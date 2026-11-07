@@ -229,6 +229,10 @@ importers:
       fastify:
         specifier: ^5.0.0
         version: 5.12.8
+    devDependencies:
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.15
 
   packages/app:
     dependencies:
@@ -258,6 +262,10 @@ importers:
       zod:
         specifier: ^3.23.0
         version: 3.25.76
+    devDependencies:
+      tsx:
+        specifier: ^4.19.0
+        version: 4.23.15
 
 packages:
 

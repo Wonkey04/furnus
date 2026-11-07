@@ -31,14 +31,14 @@ Marcá cada tarea al terminarla y hacé un commit por tarea. Al llegar al final,
 - [x] Tests: guardar, cargar, volver a una revisión anterior
 
 ## 5. MCP
-- [ ] `packages/mcp-server` con las 4 tools sobre los casos de uso
-- [ ] Descripciones claras y un ejemplo de script en la descripción de `ejecutar_script`
-- [ ] Respuesta de `ejecutar_script` con errores, medidas y validez (el feedback que cierra el bucle)
+- [x] `packages/mcp-server` con las 4 tools sobre los casos de uso
+- [x] Descripciones claras y un ejemplo de script en la descripción de `ejecutar_script`
+- [x] Respuesta de `ejecutar_script` con errores, medidas y validez (el feedback que cierra el bucle)
 - [ ] Probar que Claude Desktop (o Cursor) lo conecta
 
 ## 6. API
-- [ ] HTTP: listar proyectos, estado de una pieza, servir la malla, cambiar parámetro, exportar
-- [ ] WebSocket: avisar al visor cuando el agente ejecuta un script
+- [x] HTTP: listar proyectos, estado de una pieza, servir la malla, cambiar parámetro, exportar
+- [x] WebSocket: avisar al visor cuando el agente ejecuta un script
 
 ## 7. Visor y pantallas
 - [ ] Sistema de estilos con los tokens de `docs/BRAND.md` (claro y oscuro)
