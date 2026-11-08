@@ -26,10 +26,10 @@ Registro de lo que se decidió y por qué. Si querés desviarte de algo de acá,
 ## Pendientes (decidir con Matías)
 
 - **Persistencia local desde la fase 01.** Se propone en `ARCHITECTURE.md` (archivos en `~/.furnus/`). Falta que Matías lo confirme.
-- **Paquete MCP:** nombre del paquete para npm (`[paquete-mcp]` en la pantalla Conectar).
+- **Publicar en npm:** el paquete `furnus` está listo (decisión 49) pero NO publicado. Falta que Matías decida cuándo, con qué licencia (hoy `UNLICENSED`) y si reserva el nombre. La pantalla Conectar del visor todavía muestra la copia local, no `npx furnus init` (idea abajo).
 - **Registro de marca:** consulta en el INPI (clases 9 y 42) y revisión con un agente de propiedad industrial. No se pudo verificar por herramientas.
 - **Dominios extra:** furnus.dev está elegido; considerar furnus.app y furnus.co.
-- **Seguridad del sandbox:** el de la fase 01 es solo para uso propio. Definir el aislamiento real antes de la fase 03.
+- **Seguridad del sandbox:** el de la fase 01 es solo para uso propio. Definir el aislamiento real antes de cualquier servicio hospedado (idea futura, ya no es la fase 03).
 - **Framework de la API:** Fastify por defecto; NestJS si Matías lo prefiere.
 - **Monetización:** sin definir.
 
@@ -38,6 +38,7 @@ Registro de lo que se decidió y por qué. Si querés desviarte de algo de acá,
 - Arquitectura (edificios) como segundo público.
 - Ensamblajes con restricciones.
 - Planos 2D a partir de la pieza.
+- Cuentas, login, proyectos y servidor (Supabase). Se movieron acá desde la antigua fase 03 (decisión 48).
 
 ## Decisiones de la fase 01 (tomadas por Claude Code, baratas de revertir; revisar)
 
@@ -140,3 +141,31 @@ Pedido de Matías: el chat deja de llamar a la API de Anthropic con clave y pasa
 | 45 | **La tool recibe `pieza` del modelo.** Como el MCP no se toca, el esquema de cada tool sigue pidiendo `pieza`: el prompt le da el id y le prohíbe usar «nueva» u otro id. Se pierde la garantía fuerte de antes (el chat inyectaba el id y quitaba el campo) | Es el costo de no modificar el MCP. Riesgo abierto: si el modelo ignora el prompt puede crear otra pieza. Para decidir si hace falta un guardián en el MCP |
 | 46 | **Estado del motor y ayuda en el panel.** `GET /api/chat/estado` devuelve `{disponible, estado: "listo" \| "sin_cli" \| "sin_login" \| "sin_motor", modelo, ayuda}`. `sin_cli` si no hay `claude` en el PATH (ni en `~/.local/bin` ni en `FURNUS_CLAUDE_BIN`); `sin_login` si `claude auth status` dice que no hay sesión. La respuesta trae los comandos de instalación y de login según el sistema operativo y el panel los muestra con un botón «Volver a comprobar». El `POST` del chat responde 503 con `SIN_CLI` o `SIN_LOGIN` | Pedido de Matías |
 | 47 | La conversación sigue viviendo en la memoria del proceso de la API (más el `session_id` del CLI). Se pierde al reiniciar la API, como antes. Los transcriptos del CLI quedan en `~/.claude` del usuario | Sin cambios respecto de la decisión 39 |
+
+## Cierre de la fase 02 y fase 03 «distribución» (tomadas por Claude Code; revisar)
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 48 | **La fase 03 deja de ser «cuentas» (login, Supabase, servidor) y pasa a ser «distribución»: instalador de un comando y prueba con una persona externa.** Cuentas y servidor quedan como ideas futuras (ver `docs/PHASES.md`) | Pedido de Matías. Furnus es un producto **local**: el agente es el de la persona (BYO agent, decisión 3), el chat usa su Claude Code y su suscripción, y nadie paga tokens por ella. Un servidor con cuentas no valida nada de lo que el prototipo necesita validar y además choca con los términos de uso: hospedar el CLI con credenciales de terceros está prohibido (duda 4 de la sección del chat). Lo que sí hace falta para que otra persona lo use es que instalarlo no requiera editar JSON a mano |
+| 49 | Paquete npm `furnus` en `packages/cli`, ejecutable con `npx furnus` (`init`, `doctor`, `dev`). Sin dependencias en runtime; se empaqueta con `esbuild` a `dist/furnus.mjs`, y `prepack` arma además `runtime/` (MCP y API empaquetados, fuentes del kernel Python, visor construido). **No se publicó.** El nombre estaba libre en npm el 2026-11-08 (`npm view furnus` → 404), sin reservar. Licencia `UNLICENSED` hasta que Matías decida | Un `npx` tiene que funcionar sin el monorepo. El mismo ejecutable funciona también dentro del repo (modo «repo», corre los fuentes con tsx) |
+| 50 | `furnus init` edita **directamente** las configs: `claude_desktop_config.json` (Windows, incluida la variante de la Microsoft Store; macOS; Linux) y `~/.claude.json` (o `$CLAUDE_CONFIG_DIR/.claude.json`) de Claude Code. Antes de escribir copia el archivo a `<archivo>.furnus-backup-<fecha>`; agrega o actualiza solo `mcpServers.furnus` (conserva los otros servidores, el orden y la sangría); escribe de forma atómica (archivo temporal + renombrar) y relee el resultado; si el JSON está roto no toca nada. Usa rutas absolutas (el `node` del que corre el instalador). Sin campo `type`. Si el kernel ya tiene su entorno virtual, agrega `FURNUS_PYTHON` | Es lo que pidió Matías. Alternativa descartada: `claude mcp add-json` (más oficial para Code, pero hay que ejecutar el CLI y no se puede probar con directorios temporales). Riesgo: `~/.claude.json` lo reescribe Claude Code mientras corre; la escritura atómica y la copia lo acotan, pero una sesión abierta podría pisar el cambio |
+| 51 | `furnus doctor` comprueba Node ≥ 20, Python ≥ 3.11, build123d/numpy/Pillow, el CLI `claude` y su sesión (`claude auth status`, sin claves de API en el entorno), que el MCP responda (`initialize` + `tools/list` por stdio, con un `FURNUS_HOME` temporal) y que esté registrado. **Que falte `claude` o su login es un aviso, no una falla**: solo hace falta para el chat del visor. `doctor --instalar` crea un entorno virtual (`services/kernel/.venv` en el repo, `~/.furnus/venv` en el paquete) y le instala solo las **dependencias** del kernel: el proyecto Python tiene dos paquetes en una carpeta plana y `pip install .` falla | Cada falla dice cómo arreglarla. La instalación de build123d (OpenCascade) tarda varios minutos y puede no tener ruedas para Pythons muy nuevos; el mensaje sugiere 3.12 |
+| 52 | Para el paquete se agregan tres variables, sin cambiar contratos: `FURNUS_KERNEL_DIR` (dónde está el kernel Python), `FURNUS_VIEWER_DIR` (la API sirve el visor construido en «/», con vuelta a `index.html` para las rutas del cliente) y `FURNUS_MCP_ENTRY` (el MCP empaquetado que lanza el chat). **No se tocaron las tools del MCP ni sus esquemas** | En el paquete no existe el monorepo, y la API necesita servir el visor sin Vite |
+| 53 | El chip del agente muestra el nombre del producto, no el del cliente MCP: `claude-code` → «Claude Code», `claude-ai` → «Claude Desktop», `cursor` → «Cursor»; lo desconocido se muestra como llega | Pedido de Matías. El nombre técnico lo informa el protocolo MCP (`clientInfo.name`) |
+| 54 | **No se arregló** el nombre de las piezas nuevas («Pieza sin nombre») cuando las crea el agente sin `nombre`. En el chat la pieza ya existe cuando el agente entra, y `ejecutar_script` solo usa `nombre` al crear. Para que el agente pueda nombrarla hay que tocar el MCP (que `nombre` renombre una pieza que todavía tiene el nombre por defecto, o una tool nueva) | Pedido: si requiere tocar el MCP, anotarlo como idea |
+
+### Prueba real del chat (CLI de Claude Code, sin clave de API)
+
+Hecha el 2026-11-08 con el `claude` 2.1.319 de Matías, con sesión iniciada (`authMethod: claude.ai`) y sin `ANTHROPIC_API_KEY` en el entorno. API local en otro puerto y con `FURNUS_HOME` temporal: no se tocaron piezas reales. Detalle por caso en `docs/REPORTE_FASE_02.md`. Hallazgos que dejan decisiones abiertas:
+
+- **Hay dos reglas del prompt que chocan** para un pedido imposible: «si el script falla, corregilo y volvé a intentar sin pedirle nada a la persona» y «si lo pedido es imposible, decí cuál es el máximo posible y preguntá». Con filetes de 15 mm en una caja de 20 mm el agente eligió la segunda (con razón: corregir el radio cambia lo que la persona pidió). No se corrige solo; pregunta con el máximo y tres opciones. Si Matías quiere que baje el radio solo y lo avise, hay que cambiar el prompt.
+- Con «no me hagas cuentas» el agente sí probó, el kernel rechazó el filete y el agente no reintentó: preguntó.
+- El agente usó `ToolSearch` (una tool propia de Claude Code que carga los esquemas de las tools MCP bajo demanda) antes de la primera tool de Furnus. No está en `--allowedTools` ni en `--disallowedTools` y anduvo igual; es de solo lectura y no es un riesgo, pero conviene saber que está.
+
+### Ideas fuera de alcance (anotadas en esta pasada)
+
+- Que `ejecutar_script`/`cambiar_parametros` permitan nombrar una pieza que todavía se llama «Pieza sin nombre» (decisión 54).
+- `furnus init --quitar` (desregistrar con copia de seguridad) y `furnus init --solo cursor` (Cursor guarda su config en `~/.cursor/mcp.json`; es el segundo agente que pide el criterio de la fase 02).
+- Que la pantalla «Conectar agente» del visor muestre `npx furnus init` en vez de la configuración manual.
+- Probar la variante de la Microsoft Store de Claude Desktop en una máquina real: la ruta (`%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`) sale de lo conocido, no se verificó.
+- Varios tests de los paquetes (`furnus-contrato-*`, `furnus-repo-*`, `furnus-mcp-*`, `furnus-step-*`) dejan directorios temporales sin borrar: había cientos en `%TEMP%`. Solo se arregló el de la API.

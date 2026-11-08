@@ -9,10 +9,10 @@ Un **núcleo** que no sabe nada de CAD, de bases de datos ni de agentes, y **ada
  ───────                ──────                       ───────            ──────
  agente  ─► Adaptador MCP ─┐
                            ├─► Aplicación ─► Dominio ─► KernelPort ──► Sandbox del kernel (Python · build123d)
- visor   ─► API HTTP + WS ─┘   (casos de uso)  (TS puro)  RepositorioPort ► Archivos locales (fase 01) / Supabase (fase 03)
+ visor   ─► API HTTP + WS ─┘   (casos de uso)  (TS puro)  RepositorioPort ► Archivos locales
                                                          RenderPort ──► Renderizador headless (three.js)
                                                          EventosPort ─► Hub WebSocket (avisa a visores y agentes)
- Transversal: autenticación (fase 03) · logs y trazas · límites de uso · aislamiento del sandbox
+ Transversal: logs y trazas · límites de uso · aislamiento del sandbox
 ```
 
 ## Sectores
@@ -21,12 +21,12 @@ Un **núcleo** que no sabe nada de CAD, de bases de datos ni de agentes, y **ada
 |---|---|---|
 | Dominio | Pieza, Script, Revisión, Parámetro, Selector, reglas de validación | TypeScript puro |
 | Aplicación | Casos de uso y definición de puertos: `EjecutarScript`, `CambiarParametro`, `ConsultarEstado`, `Exportar` (más adelante `CompararVariantes`, `AprobarFusion`) | TypeScript |
-| Adaptador MCP | Expone las 4 tools, valida la entrada, arma la respuesta | TypeScript |
+| Adaptador MCP | Expone las 5 tools, valida la entrada, arma la respuesta | TypeScript |
 | API + WebSocket | Sesiones de personas, sirve la malla al visor, avisa de cambios | TypeScript |
 | Sandbox del kernel | Ejecuta el script con build123d; devuelve malla, medidas, validez y errores | Python |
 | Renderizador | Capturas de la pieza desde varios ángulos | TypeScript (three.js headless) |
 | Visor web | Mostrar, orbitar, medir, editar parámetros | React + three.js |
-| Persistencia | Guardar proyecto y revisiones | Archivos (fase 01), Supabase (fase 03) |
+| Persistencia | Guardar proyecto y revisiones | Archivos locales (Supabase queda como idea futura) |
 
 ## El script es la fuente de verdad
 
@@ -65,7 +65,7 @@ Referencias por significado, no por índice. "Aristas superiores" es un objeto q
 
 Conjunto inicial: caras `superior`, `inferior`, `frontal`, `trasera`, `izquierda`, `derecha`; aristas `superiores`, `inferiores`, `verticales`; `agujeros`. Se amplía en la fase 02 según lo que pidan los agentes.
 
-## Las 4 tools del MCP
+## Las 5 tools del MCP
 
 | Tool | Entrada | Salida |
 |---|---|---|
@@ -96,7 +96,7 @@ Las descripciones de las tools y los ejemplos que reciben los agentes son parte 
 
 **Fase 01 (uso propio, local):** el script corre en un subproceso de Python con tiempo máximo, límite de memoria, sin red y con una lista de imports permitidos (build123d, math, y `furnus`). Un análisis estático del script descarta `os`, `subprocess`, `socket`, `open` y similares antes de correr.
 
-**Esto NO es seguridad real.** Sirve mientras el único que ejecuta código es Matías. Antes de que un tercero use el sistema (fase 03) hay que reforzarlo con aislamiento de verdad (contenedor por ejecución o similar).
+**Esto NO es seguridad real.** Sirve mientras el único que ejecuta código es Matías. Antes de que un tercero ejecute código en un servicio hospedado (idea futura) hay que reforzarlo con aislamiento de verdad (contenedor por ejecución o similar).
 
 ## Patrones
 
@@ -119,7 +119,7 @@ packages/
   agente/             chat embebido: lanza el Claude Code del usuario (`claude -p`, stream-json) con el MCP de Furnus
   api/                entrada: HTTP + WebSocket
   adapter-local/      repositorio en archivos (fase 01)
-  adapter-supabase/   repositorio y auth (fase 03)
+  cli/                paquete `furnus` (npx furnus): init, doctor y dev (fase 03)
 apps/
   viewer/             React + Vite + three.js
 services/
@@ -139,4 +139,4 @@ Los tests del núcleo usan un `KernelPort` falso. Aparte van **tests de contrato
   salidas/               malla, capturas y exportaciones de la última ejecución
 ```
 
-Se implementa detrás de `RepositorioPort`, así en la fase 03 se cambia por Supabase sin tocar el dominio.
+Se implementa detrás de `RepositorioPort`, así, si algún día hay un servidor, se cambia por otro adaptador (por ejemplo Supabase) sin tocar el dominio.

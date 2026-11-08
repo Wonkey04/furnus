@@ -38,7 +38,9 @@ Los documentos de `docs/` son la fuente de verdad. Si algo del código contradic
 - API: HTTP + WebSocket (Fastify). Se puede cambiar a NestJS si Matías lo pide; no lo cambies por tu cuenta.
 - Visor: React + Vite + three.js.
 - Kernel: Python 3.11+ con build123d (OpenCascade), expuesto como servicio local que habla JSON.
-- Persistencia fase 01: archivos locales en `~/.furnus/proyectos/<id>/` (ver `docs/ARCHITECTURE.md`). Supabase llega en la fase 03.
+- Persistencia: archivos locales en `~/.furnus/proyectos/<id>/` (ver `docs/ARCHITECTURE.md`). Cuentas, Supabase y servidor son ideas futuras, no están planificados (decisión 48).
+- Chat del visor: lanza el Claude Code que la persona ya tiene instalado (`claude -p`, salida `stream-json`) con el MCP de Furnus. Sin API de Anthropic, sin SDK y sin clave: usa la suscripción de la persona, y a `claude` se le quitan `ANTHROPIC_API_KEY` y similares del entorno.
+- Distribución: paquete `furnus` en `packages/cli` (`npx furnus init | doctor | dev`). Registra el MCP en Claude Desktop y Claude Code, comprueba el entorno y levanta la API y el visor. No se publica en npm sin que Matías lo decida.
 
 ## Estilo del código
 
@@ -50,7 +52,7 @@ Los documentos de `docs/` son la fuente de verdad. Si algo del código contradic
 
 - No uses un ORM ni una base de datos en la fase 01.
 - No agregues un color a la interfaz: es blanco y negro (ver `docs/BRAND.md`).
-- No inventes herramientas MCP extra: son cuatro (ver `docs/ARCHITECTURE.md`).
+- No inventes herramientas MCP extra: son cinco (`ejecutar_script`, `cambiar_parametros`, `medir`, `renderizar`, `exportar`; ver `docs/ARCHITECTURE.md` y la decisión 27).
 - No ejecutes scripts de usuario fuera del sandbox, ni siquiera en tests.
 - No des la seguridad del sandbox por resuelta en la fase 01: es solo para uso propio y local.
 
@@ -58,7 +60,10 @@ Los documentos de `docs/` son la fuente de verdad. Si algo del código contradic
 
 ```
 pnpm install
-pnpm test          # tests de todos los paquetes
+pnpm typecheck
+pnpm lint
+pnpm test          # tests de todos los paquetes (incluye el kernel Python)
 pnpm dev           # api + visor
 pnpm kernel        # levanta el servicio Python
+node packages/cli/scripts/construir.mjs [--runtime]   # arma dist/ (y runtime/) del paquete furnus; NO publica
 ```
