@@ -4,6 +4,8 @@
 
 Los 7 puntos del alcance están hechos y probados con tests. **El criterio de cierre todavía NO se cumple:** pide que los 4 casos (ambiguo, error imposible, error con arreglo, cambio de parámetro) pasen con un agente real y sin ayuda, y eso no se pudo probar acá. Todo lo verificado con agente fue con clientes en memoria, un cliente MCP propio y, para el chat, un servidor falso de la API de Anthropic.
 
+> **Actualización 2026-11-08:** el chat ahora usa el Claude Code real de Matías y se probó con un `claude` de verdad; los resultados, qué se validó con un agente limpio y qué no, y por qué el criterio de dos agentes sigue abierto están en el último anexo («Cierre»).
+
 ## Qué se hizo
 
 | # | Punto | Resultado |
@@ -76,3 +78,65 @@ Ajustes hechos a partir de eso (`packages/mcp-server/src/herramientas.ts`):
 - Toda respuesta de `ejecutar_script` y `cambiar_parametros` empieza con `resumen` (una línea: OK con medidas y validez, o el error con línea y sugerencia).
 
 Sigue pendiente: repetir con un agente limpio y el cliente MCP reiniciado (caso 4 incluido). La pieza huérfana `398be2ef` es de la versión vieja y se borra a mano.
+
+
+## Anexo · Cierre: prueba real del chat con Claude Code, typecheck e instalador (2026-11-08)
+
+### Qué cambió desde el reporte
+
+- El chat ya no usa la API de Anthropic: lanza el `claude` de la persona (decisiones 40 a 47). Esta ronda lo probó por primera vez contra un `claude` **real** (2.1.319, sesión `claude.ai`, sin `ANTHROPIC_API_KEY`). Lo que el reporte dice arriba sobre «servidor falso de la API» ya no aplica al chat.
+- `pnpm typecheck` fallaba en `packages/mcp-server/src/herramientas.ts` (`SalidaEjecucion` contra `ResultadoEjecucion`). **La rotura venía de la ronda del `resumen`** (commit `1b6c4a5`): `resumenEjecucion` se tipó con el tipo del dominio, que exige `ejecutadoEn`, y los casos de uso devuelven `SalidaEjecucion`. Arreglado en `92a4e6a`. Con eso `pnpm typecheck`, `pnpm lint` y `pnpm test` pasan (ahora 160 tests TypeScript, 47 de ellos del instalador, más 40 en Python).
+- Chip del agente: muestra «Claude Code» (decisión 53).
+- Nuevo paquete `furnus` (`init`, `doctor`, `dev`), listo y **sin publicar** (decisiones 48 a 52). La antigua fase 03 (cuentas, Supabase) pasa a «distribución».
+
+### Resultados de la prueba real del chat
+
+Cómo se hizo: API local en el puerto 4011 con `FURNUS_HOME` temporal (no se tocó ninguna pieza de `~/.furnus/proyectos/`), `POST /api/piezas/:id/chat` y lectura de los eventos por el WebSocket. El agente es el `claude -p` del chat, con solo las 5 tools de Furnus y sin acceso a archivos ni shell; **no leyó el repo** y lo único que lo orienta es el prompt del chat. Los textos de los pedidos son los de la tarea, salvo las variantes a2 y a3, marcadas.
+
+| Caso | Tools usadas (en orden) | Intentos | Errores recibidos | ¿Se corrigió sola? | Resultado |
+|---|---|---|---|---|---|
+| **a** · «caja de 50×30×20 con filetes de 15 mm en todas las aristas» | ninguna | 0 | ninguno | No aplica: ni lo intentó | Razonó la imposibilidad («15 + 15 > 20»), dio el máximo (~9 mm, «menor a 10») y ofreció 3 opciones: filete de 9 mm, otro radio, o subir el alto. Pieza sin revisión. 12,7 s |
+| **a2** · variante: mismo pedido con 9,9 mm y «probalo directamente en el sandbox, no me hagas cuentas» | `ToolSearch`, `ejecutar_script`, `renderizar` | 1 | ninguno (el 9,9 entra) | No aplica | Caja 50×30×20 válida, mirada en el render. Asumió y declaró parámetros. 15,8 s |
+| **a3** · variante: el pedido original (15 mm) con «probalo directamente en el sandbox, no me hagas cuentas» | `ToolSearch`, `ejecutar_script` | 1 | «No se pudo hacer el filete: el radio pedido es demasiado grande para estas aristas.» | **No.** No reintentó con otro radio: explicó el motivo, dio el máximo y preguntó entre 3 opciones. Pieza sin revisión | 16,6 s |
+| **b** · «Poné el espesor en 30» (pieza con `espesor`=10, creada por la API, no por el agente) | `ToolSearch`, **`cambiar_parametros`** | 1 | ninguno | No aplica | Usó `cambiar_parametros` y **no reescribió el script**. Revisión 2, 80 × 50 × 30 mm, válida. 12,0 s |
+| **c** · «hacé un soporte para celular» | `ToolSearch`, `ejecutar_script`, `renderizar` | 1 | ninguno | No aplica | Creó el soporte (63,6 × 80 × 103,4 mm, válido), lo miró en el render y **listó las suposiciones** («Asumí: ancho 80 mm, espesor 6 mm, ranura de 14 mm…, todos son parámetros»). No preguntó. 24,8 s |
+
+Lectura honesta:
+
+- **Cuenta como pasado:** b (cambiar un parámetro sin reescribir) y c (asumir y listar suposiciones, verificar con render).
+- **a no ejercitó el lazo de error:** el agente rechazó el pedido sin llamar al kernel. Para ver el error hubo que pedírselo explícitamente (a3), y ahí **no se corrigió solo**. No es un fallo del agente: el prompt tiene dos reglas que chocan («corregí y volvé a intentar» / «si es imposible, decí el máximo y preguntá») y elegir la segunda es razonable porque bajar el radio cambia lo que la persona pidió. Queda como decisión de Matías (ver `DECISIONS.md`, sección «Prueba real del chat»).
+- **No quedó probado el caso «error con arreglo posible»** (un error cuyo arreglo no cambia lo pedido, como un nombre mal escrito): ninguno de los tres pedidos produjo uno.
+- No se pudo ver qué tan útil fue la `sugerencia` del kernel: el panel solo muestra el mensaje corto del error, y el agente no la citó.
+- El nombre de la pieza no se evaluó (las piezas las creé yo con un nombre): ver decisión 54.
+- Es **una sola corrida por caso**, con un solo modelo (el que Claude Code elige para el plan de Matías): sirve de indicio, no de estadística.
+
+### Qué se validó con un agente limpio y qué no
+
+| Qué | ¿Agente limpio? | Estado |
+|---|---|---|
+| Chat embebido con el Claude Code real (b, c, a, a3) | **Sí**: sin acceso a archivos, sin leer el repo, solo el prompt del chat | Hecho, una corrida |
+| `cambiar_parametros` en lugar de reescribir el script | **Sí** (caso b) | Hecho |
+| Suposiciones listadas ante un pedido sin medidas | **Sí** (caso c) | Hecho |
+| Autocorrección ante un error del kernel | Parcial: se recibió el error, no hubo reintento | **Abierto** |
+| Pedido ambiguo y error imposible por el MCP desde un cliente externo (Claude Desktop, Cursor) | **No** | La primera pasada del anexo anterior no cuenta (el agente había leído el repo y el MCP era el de antes de la fase 02) |
+| `furnus init` en la máquina real de Matías | **No**: probado solo con directorios temporales y con un «home» falso | Pendiente |
+| STEP abierto en FreeCAD o Fusion, STEP en pulgadas | **No** | Pendiente |
+| Instalación de cero (`doctor --instalar`: venv + build123d) | **No**: solo con comandos simulados; no se creó un venv real | Pendiente |
+
+### Criterio de salida de la fase 02
+
+El criterio pide que la batería se resuelva sin ayuda **con al menos dos agentes distintos**. **Hoy hay uno: Claude Code** (a través del chat embebido). El segundo agente no se probó. Con el instalador listo, el segundo se prueba a mano: `npx furnus init` (o `node packages/cli/dist/furnus.mjs init` desde el repo), reiniciar Claude Desktop, correr `furnus doctor`, y repetir los 4 casos de `docs/GUIA_PRUEBAS_FASE_02.md` desde Claude Desktop o Cursor (Cursor todavía no lo registra `init`: es una idea anotada). Por eso la fase 02 **no se da por cerrada**.
+
+### Qué se probó del instalador
+
+- 47 tests, todos con directorios temporales (ninguno lee ni escribe la config real): fusión sin pisar otros servidores, copia de seguridad idéntica al original, idempotencia, `--simular`, JSON roto (no toca nada), rutas de Windows (incluida la variante de la Store), macOS y Linux, `CLAUDE_CONFIG_DIR`, `doctor` con cada falla y su arreglo, `--instalar` con venv y pip simulados, y el contrato real del MCP (exactamente las 5 tools).
+- A mano, con el ejecutable empaquetado copiado **fuera del repo** y un «home» falso (`USERPROFILE`/`APPDATA` apuntando a un temporal): `init` registró el MCP y dejó la copia de seguridad; `doctor` pasó todo (Node, Python 3.12, build123d 0.13, MCP con 5 tools, registro); `dev` levantó la API empaquetada sirviendo el visor, y un script ejecutado por la API corrió en el kernel de `runtime/kernel`. La config real de Claude Desktop y de Claude Code **no se tocó** (no hay copias `.furnus-backup-` en ninguna).
+- No se probó: macOS ni Linux de verdad (solo la lógica de rutas), la variante de la Microsoft Store, `claude mcp` ni Cursor.
+
+### Pendiente para Matías
+
+1. Probar `furnus init` en tu máquina real y reiniciar Claude Desktop / abrir una sesión nueva de Claude Code.
+2. Probar con otra persona (la prueba externa de la fase 03) y anotar dónde se traba.
+3. Decidir cuándo publicar en npm (y licencia y nombre).
+4. Decidir qué hace el agente ante un pedido imposible (preguntar, como hoy, o bajar el valor y avisar).
+5. Resolver las dudas de términos de uso del CLI con suscripción antes de mostrárselo a terceros (decisiones 40 a 47).
