@@ -15,11 +15,21 @@ export function Logo() {
   );
 }
 
+/** El MCP informa el nombre técnico del cliente («claude-code»); a la persona le mostramos el nombre del producto. */
+export function nombreDeAgente(cliente: string | null): string {
+  if (!cliente) return "Agente";
+  const c = cliente.toLowerCase();
+  if (c.startsWith("claude-code")) return "Claude Code";
+  if (c.startsWith("claude-ai") || c.includes("claude desktop")) return "Claude Desktop";
+  if (c.includes("cursor")) return "Cursor";
+  return cliente;
+}
+
 export function ChipAgente({ agente }: { agente: EstadoAgente }) {
   return (
     <span className="chip" role="status">
       <span className={agente.conectado ? "punto" : "punto inactivo"} aria-hidden="true" />
-      {agente.conectado ? `${agente.cliente ?? "Agente"} conectado` : "Sin agente conectado"}
+      {agente.conectado ? `${nombreDeAgente(agente.cliente)} conectado` : "Sin agente conectado"}
     </span>
   );
 }
