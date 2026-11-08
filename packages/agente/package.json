@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.6.0",
     "@furnus/app": "workspace:*",
     "@furnus/core": "workspace:*",
     "@furnus/mcp-server": "workspace:*",

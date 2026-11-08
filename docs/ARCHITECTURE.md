@@ -116,7 +116,7 @@ packages/
   core/               dominio (TS puro): pieza, script, revisión, parámetros, selectores
   app/                casos de uso y definición de puertos
   mcp-server/         entrada: las 5 tools (decisión 27)
-  agente/             chat embebido: bucle de la API de Anthropic sobre las mismas tools del MCP
+  agente/             chat embebido: lanza el Claude Code del usuario (`claude -p`, stream-json) con el MCP de Furnus
   api/                entrada: HTTP + WebSocket
   adapter-local/      repositorio en archivos (fase 01)
   adapter-supabase/   repositorio y auth (fase 03)

@@ -12,7 +12,7 @@ Regla de oro: **no le des pistas.** Pedí las cosas como las pediría una person
    ```powershell
    Get-NetTCPConnection -LocalPort 4010,4020,5173 -State Listen -ErrorAction SilentlyContinue | Select-Object LocalPort, OwningProcess
    ```
-2. **Clave para el chat** (solo para la parte B). Copiá `.env.example` a `.env` y completá `ANTHROPIC_API_KEY=`. El archivo `.env` no se commitea. Opcional: `FURNUS_MODELO=claude-sonnet-5-5` si querés probar algo más barato.
+2. **Claude Code para el chat** (solo para la parte B). El chat ya no usa clave de API: lanza el Claude Code de tu computadora con tu suscripción. Si no lo tenés, el panel del chat te muestra cómo instalarlo y entrar (`claude auth login`). Opcional: `FURNUS_MODELO=claude-sonnet-5-5` en `.env` si querés fijar el modelo.
 3. **Levantá todo:**
    ```bash
    pnpm dev
@@ -100,9 +100,9 @@ En cualquier conversación: `Mirá la pieza y decime si las patas están bien pu
 
 ---
 
-## B. El chat del visor con clave real (15 min)
+## B. El chat del visor con Claude Code real (15 min)
 
-Con `pnpm dev` corriendo y la clave en `.env`, abrí una pieza nueva («Nueva pieza») y usá el panel **Chat**. Repetí en versión corta:
+Con `pnpm dev` corriendo y Claude Code con la sesión iniciada, abrí una pieza nueva («Nueva pieza») y usá el panel **Chat**. Repetí en versión corta:
 
 1. `Hacé una mesa` → ¿arma la pieza, aparece en el visor y lista las suposiciones?
 2. `Poné el espesor de la tapa en 30` → ¿usa `cambiar_parametros` (lo ves en la línea de la tool del chat)?
@@ -110,7 +110,7 @@ Con `pnpm dev` corriendo y la clave en `.env`, abrí una pieza nueva («Nueva pi
 4. Cerrá la pestaña y volvé a abrir la pieza → ¿se restaura la conversación?
 5. Mandá un pedido largo y apretá **Parar** a mitad → ¿corta limpio y se puede seguir escribiendo?
 
-Mirá también: cuánto tarda el primer texto, si el estado «Trabajando…» se entiende, y **cuánto gastó** en la consola de Anthropic (el modelo por defecto es `claude-opus-5-5`, el más caro).
+Mirá también: cuánto tarda el primer texto, si el estado «Trabajando…» se entiende, y **cuánto cupo de tu suscripción gastó**, qué modelo aparece abajo a la izquierda del panel (el que informa el CLI) y si en algún momento la tool intentó trabajar sobre otra pieza (el chat ya no fija el id: se lo pide el prompt, decisión 45).
 
 ---
 
@@ -148,7 +148,7 @@ Copiala y completala. «Intentos» = veces que llamó a `ejecutar_script` hasta 
 
 - **El visor dice «Sin agente conectado» con el cliente abierto:** reiniciá el cliente MCP; revisá que la ruta de `main.ts` sea la de tu carpeta.
 - **El agente no ve `cambiar_parametros` o `renderizar` con imágenes:** el cliente quedó con la versión vieja del servidor; cerralo del todo y abrilo de nuevo.
-- **El chat dice «Chat sin configurar»:** falta `ANTHROPIC_API_KEY` en `.env` o reiniciar `pnpm dev` después de ponerla.
+- **El chat dice «Falta Claude Code» o «Falta iniciar sesión»:** seguí los comandos del panel y apretá «Volver a comprobar». Si `claude` está instalado pero fuera del PATH, poné su ruta en `FURNUS_CLAUDE_BIN` dentro de `.env` y reiniciá `pnpm dev`.
 - **Un error que no entendés:** copiá el texto completo que devolvió la tool (o el detalle en «Actividad del agente») y pasámelo.
 - **Limpieza:** las piezas de prueba viven en `~/.furnus/proyectos/<id>/`; podés borrar las carpetas que no quieras.
 

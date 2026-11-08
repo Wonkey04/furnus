@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CASOS_CONTRATO, KernelFalso, RelojFijo, RepositorioEnMemoria, SCRIPT_CAJA } from "@furnus/app";
-import type { AgentePuerto, EventoChat } from "@furnus/agente";
+import { ayudaClaudeCode, type AgentePuerto, type Diagnostico, type EventoChat } from "@furnus/agente";
 import type { FastifyInstance } from "fastify";
 import { HubEventos, PresenciaAgente, crearServidor } from "./servidor.js";
 
@@ -119,7 +119,10 @@ describe("chat con el agente embebido", () => {
     cancelado = false;
     envios: string[] = [];
     liberar: () => void = () => undefined;
-    constructor(public disponible = true) {}
+    constructor(public motor: "listo" | "sin_cli" | "sin_login" = "listo") {}
+    async diagnostico(): Promise<Diagnostico> {
+      return this.motor === "listo" ? { estado: "listo", version: "2.1.300" } : { estado: this.motor, ayuda: ayudaClaudeCode("win32") };
+    }
     estado() {
       return { ocupado: this.ocupado, transcripto: [{ tipo: "usuario" as const, texto: "hola" }] };
     }
@@ -143,8 +146,8 @@ describe("chat con el agente embebido", () => {
   let id: string;
   const recibidos: { tipo: string; piezaId?: string; evento?: { tipo: string } }[] = [];
 
-  async function levantar(disponible = true) {
-    agente = new AgenteFalso(disponible);
+  async function levantar(motor: "listo" | "sin_cli" | "sin_login" = "listo") {
+    agente = new AgenteFalso(motor);
     recibidos.length = 0;
     const h = new HubEventos();
     h.agregar({ send: (d) => recibidos.push(JSON.parse(d)), on: () => undefined, readyState: 1 });
@@ -160,9 +163,22 @@ describe("chat con el agente embebido", () => {
 
   it("informa si el chat está disponible y con qué modelo", async () => {
     await levantar();
-    expect((await chat.inject({ url: "/api/chat/estado" })).json()).toEqual({ disponible: true, modelo: "modelo-falso" });
+    expect((await chat.inject({ url: "/api/chat/estado" })).json()).toEqual({ disponible: true, estado: "listo", modelo: "modelo-falso", version: "2.1.300", ayuda: null });
     // el servidor de los otros tests no tiene agente
-    expect((await app.inject({ url: "/api/chat/estado" })).json()).toEqual({ disponible: false, modelo: null });
+    expect((await app.inject({ url: "/api/chat/estado" })).json()).toEqual({ disponible: false, estado: "sin_motor", modelo: null, ayuda: null });
+  });
+
+  it("sin Claude Code instalado, el estado trae los comandos para instalarlo y entrar", async () => {
+    await levantar("sin_cli");
+    const e = (await chat.inject({ url: "/api/chat/estado" })).json();
+    expect(e).toMatchObject({ disponible: false, estado: "sin_cli" });
+    expect(e.ayuda.instalar[0].comando).toBe("irm https://claude.ai/install.ps1 | iex");
+    expect(e.ayuda.login).toBe("claude auth login");
+  });
+
+  it("instalado pero sin sesión, el estado es sin_login", async () => {
+    await levantar("sin_login");
+    expect((await chat.inject({ url: "/api/chat/estado" })).json()).toMatchObject({ disponible: false, estado: "sin_login" });
   });
 
   it("acepta el mensaje enseguida y manda el avance por el WebSocket", async () => {
@@ -191,12 +207,28 @@ describe("chat con el agente embebido", () => {
     agente.liberar();
   });
 
-  it("sin clave devuelve 503 con la instrucción para ponerla", async () => {
-    await levantar(false);
+  it("sin Claude Code devuelve 503 SIN_CLI y no manda nada al agente", async () => {
+    await levantar("sin_cli");
     const r = await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "hola" } });
     expect(r.statusCode).toBe(503);
-    expect(r.json().error).toMatchObject({ codigo: "SIN_CLAVE" });
-    expect(r.json().error.mensaje).toContain("ANTHROPIC_API_KEY");
+    expect(r.json().error).toMatchObject({ codigo: "SIN_CLI" });
+    expect(r.json().error.mensaje).toContain("Claude Code");
+    expect(agente.envios).toEqual([]);
+  });
+
+  it("sin sesión iniciada devuelve 503 SIN_LOGIN con el comando", async () => {
+    await levantar("sin_login");
+    const r = await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "hola" } });
+    expect(r.statusCode).toBe(503);
+    expect(r.json().error).toMatchObject({ codigo: "SIN_LOGIN" });
+    expect(r.json().error.mensaje).toContain("claude auth login");
+  });
+
+  it("sin agente armado el chat responde 503 en vez de fallar", async () => {
+    const id2 = ((await app.inject({ method: "POST", url: "/api/piezas", payload: { nombre: "x" } })).json() as { id: string }).id;
+    const r = await app.inject({ method: "POST", url: `/api/piezas/${id2}/chat`, payload: { texto: "hola" } });
+    expect(r.statusCode).toBe(503);
+    expect(r.json().error.codigo).toBe("SIN_CLI");
   });
 
   it("devuelve la conversación guardada y permite cancelar", async () => {

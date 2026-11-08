@@ -47,6 +47,7 @@
 .vacio-pieza { position: absolute; inset: 0; display: flex; flex-direction: column; gap: var(--sp-2); align-items: center; justify-content: center; text-align: center; padding: var(--sp-5); }
 .chips-visor { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .aviso { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; padding: var(--sp-3); border: 1px dashed var(--line); border-radius: var(--r-input); }
+.aviso-comando { display: flex; flex-direction: column; gap: var(--sp-1); width: 100%; }
 .motivos { margin: 0; padding-left: var(--sp-5); }
 .traza {
   margin: 0; max-width: 100%; max-height: 220px; overflow: auto; padding: var(--sp-3);

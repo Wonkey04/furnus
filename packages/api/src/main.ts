@@ -1,12 +1,12 @@
 import { RepositorioLocal } from "@furnus/adapter-local";
 import { KernelHttp } from "@furnus/adapter-kernel";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Agente } from "@furnus/agente";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { AgenteCli } from "@furnus/agente";
 import { crearServidor } from "./servidor.js";
 
 const raiz = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-// La clave de Anthropic vive en .env (que no se commitea). Si no existe, el chat queda deshabilitado.
+// .env es opcional (puerto, carpeta de proyectos, modelo del chat). El chat NO usa claves: lanza el Claude Code de la persona.
 try {
   process.loadEnvFile(resolve(raiz, ".env"));
 } catch {
@@ -17,7 +17,16 @@ const puerto = Number(process.env.FURNUS_API_PORT ?? 4010);
 const kernel = new KernelHttp({ autoIniciar: true });
 const app = await crearServidor({
   raiz,
-  crearAgente: (deps) => new Agente({ deps, apiKey: process.env.ANTHROPIC_API_KEY, modelo: process.env.FURNUS_MODELO }),
+  crearAgente: () =>
+    new AgenteCli({
+      modelo: process.env.FURNUS_MODELO || undefined,
+      // El mismo servidor MCP que usa un agente externo (ver .mcp.json).
+      mcp: {
+        command: process.execPath,
+        args: ["--import", pathToFileURL(resolve(raiz, "node_modules", "tsx", "dist", "esm", "index.mjs")).href, resolve(raiz, "packages", "mcp-server", "src", "main.ts")],
+        env: { FURNUS_API_PORT: String(puerto) },
+      },
+    }),
   deps: { kernel, repositorio: new RepositorioLocal(), reloj: { ahora: () => new Date().toISOString() } },
 });
 await app.listen({ port: puerto, host: "127.0.0.1" });

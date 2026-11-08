@@ -208,7 +208,11 @@ export async function crearServidor(opciones: OpcionesServidor): Promise<Fastify
   );
 
   // --- Chat con el agente embebido: el pedido vuelve enseguida y el avance viaja por el WebSocket ---
-  app.get("/api/chat/estado", async () => ({ disponible: agenteChat?.disponible ?? false, modelo: agenteChat?.modelo ?? null }));
+  app.get("/api/chat/estado", async () => {
+    if (!agenteChat) return { disponible: false, estado: "sin_motor", modelo: null, ayuda: null };
+    const d = await agenteChat.diagnostico();
+    return { disponible: d.estado === "listo", estado: d.estado, modelo: agenteChat.modelo, version: d.version ?? null, ayuda: d.ayuda ?? null };
+  });
 
   app.get<{ Params: { id: string } }>("/api/piezas/:id/chat", async (req, reply) => {
     if (!agenteChat) return { ocupado: false, transcripto: [] };
@@ -221,9 +225,16 @@ export async function crearServidor(opciones: OpcionesServidor): Promise<Fastify
   app.post<{ Params: { id: string }; Body: { texto?: string } }>("/api/piezas/:id/chat", async (req, reply) => {
     const texto = typeof req.body?.texto === "string" ? req.body.texto.trim() : "";
     if (!texto) return reply.code(400).send({ error: { codigo: "PEDIDO_INVALIDO", mensaje: "Escribí un mensaje." } });
-    if (!agenteChat?.disponible) {
+    const motor = agenteChat ? await agenteChat.diagnostico() : null;
+    if (!agenteChat || motor?.estado !== "listo") {
+      const sinLogin = motor?.estado === "sin_login";
       return reply.code(503).send({
-        error: { codigo: "SIN_CLAVE", mensaje: "El chat necesita ANTHROPIC_API_KEY en el archivo .env. Reiniciá «pnpm dev» después de ponerla." },
+        error: {
+          codigo: sinLogin ? "SIN_LOGIN" : "SIN_CLI",
+          mensaje: sinLogin
+            ? "Claude Code no tiene la sesión iniciada. Corré «claude auth login» en una terminal y probá de nuevo."
+            : "El chat usa Claude Code y no se lo encuentra. Instalalo (comando en el panel de chat) y probá de nuevo.",
+        },
       });
     }
     const id = req.params.id;

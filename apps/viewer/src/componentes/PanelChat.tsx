@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
-import { ErrorApi, api, useEventos, type EventoChat, type ItemChat } from "../api";
+import { ErrorApi, api, useEventos, type EstadoMotorChat, type EventoChat, type ItemChat } from "../api";
 
 function aplicar(items: ItemChat[], e: EventoChat): ItemChat[] {
   switch (e.tipo) {
@@ -26,16 +26,23 @@ function aplicar(items: ItemChat[], e: EventoChat): ItemChat[] {
 const EJEMPLOS = ["Una mesa de comedor para seis personas", "Un soporte con dos agujeros de 8 mm", "Una caja con tapa de 80 × 50 × 30 mm"];
 
 export function PanelChat({ piezaId }: { piezaId: string }) {
-  const [config, setConfig] = useState<{ disponible: boolean; modelo: string | null } | null>(null);
+  const [config, setConfig] = useState<EstadoMotorChat | null>(null);
+  const [comprobando, setComprobando] = useState(false);
   const [items, setItems] = useState<ItemChat[]>([]);
   const [ocupado, setOcupado] = useState(false);
   const [texto, setTexto] = useState("");
   const [error, setError] = useState<string | null>(null);
   const finDeLista = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    api.chatEstado().then(setConfig).catch(() => setConfig({ disponible: false, modelo: null }));
-  }, []);
+  const comprobar = () => {
+    setComprobando(true);
+    api
+      .chatEstado()
+      .then(setConfig)
+      .catch(() => setConfig({ disponible: false, estado: "sin_motor", modelo: null, ayuda: null }))
+      .finally(() => setComprobando(false));
+  };
+  useEffect(comprobar, []);
 
   useEffect(() => {
     setItems([]);
@@ -81,7 +88,7 @@ export function PanelChat({ piezaId }: { piezaId: string }) {
     }
   };
 
-  const sinClave = config !== null && !config.disponible;
+  const sinMotor = config !== null && !config.disponible;
 
   return (
     <section className="panel vidrio chat" aria-labelledby="t-chat">
@@ -91,7 +98,7 @@ export function PanelChat({ piezaId }: { piezaId: string }) {
         {items.length === 0 && !ocupado && (
           <div className="chat-vacio">
             <p className="secundario">Contale qué pieza necesitás y la armo acá.</p>
-            {!sinClave && (
+            {!sinMotor && (
               <ul className="chat-ejemplos">
                 {EJEMPLOS.map((e) => (
                   <li key={e}><button type="button" className="btn btn-enlace" onClick={() => void enviar(e)}>{e}</button></li>
@@ -118,11 +125,31 @@ export function PanelChat({ piezaId }: { piezaId: string }) {
         <div ref={finDeLista} />
       </div>
 
-      {sinClave && (
+      {sinMotor && (
         <div className="aviso" role="status">
-          <span className="etiqueta-panel">Chat sin configurar</span>
-          <p className="secundario">Para chatear acá poné tu clave en el archivo <span className="mono">.env</span> y reiniciá <span className="mono">pnpm dev</span>:</p>
-          <pre className="codigo">ANTHROPIC_API_KEY=sk-ant-…</pre>
+          <span className="etiqueta-panel">{config.estado === "sin_login" ? "Falta iniciar sesión" : "Falta Claude Code"}</span>
+          {config.estado === "sin_login" && config.ayuda ? (
+            <>
+              <p className="secundario">El chat usa el Claude Code de tu computadora, con tu suscripción. Ya está instalado pero no tiene la sesión iniciada. Abrí una terminal y corré:</p>
+              <pre className="codigo">{config.ayuda.login}</pre>
+              <p className="ayuda">Se abre el navegador para entrar con tu cuenta de Claude. Después volvé acá.</p>
+            </>
+          ) : config.ayuda ? (
+            <>
+              <p className="secundario">El chat usa el Claude Code de tu computadora, con tu suscripción (no pide clave de API). No lo encuentro: instalalo con uno de estos comandos en una terminal:</p>
+              {config.ayuda.instalar.map((i) => (
+                <div key={i.etiqueta} className="aviso-comando">
+                  <span className="ayuda">{i.etiqueta}</span>
+                  <pre className="codigo">{i.comando}</pre>
+                </div>
+              ))}
+              <p className="secundario">Después iniciá sesión:</p>
+              <pre className="codigo">{config.ayuda.login}</pre>
+            </>
+          ) : (
+            <p className="secundario">Este servidor no tiene el chat activado. Reiniciá <span className="mono">pnpm dev</span>.</p>
+          )}
+          <button type="button" className="btn" disabled={comprobando} onClick={comprobar}>{comprobando ? "Comprobando…" : "Volver a comprobar"}</button>
           <p className="ayuda">O usá tu propio agente (Claude Desktop, Cursor): <Link to="/conectar">Conectar agente</Link>.</p>
         </div>
       )}
@@ -135,8 +162,8 @@ export function PanelChat({ piezaId }: { piezaId: string }) {
           className="input chat-texto"
           rows={2}
           value={texto}
-          placeholder={sinClave ? "Falta la clave de la API" : "Escribí qué querés hacer…"}
-          disabled={sinClave}
+          placeholder={sinMotor ? "Falta dejar andando Claude Code" : "Escribí qué querés hacer…"}
+          disabled={sinMotor}
           onChange={(e) => setTexto(e.target.value)}
           onKeyDown={alTeclear}
         />
@@ -146,7 +173,7 @@ export function PanelChat({ piezaId }: { piezaId: string }) {
           {ocupado ? (
             <button type="button" className="btn" onClick={() => void api.cancelarChat(piezaId)}>Parar</button>
           ) : (
-            <button type="submit" className="btn btn-primario" disabled={sinClave || !texto.trim()}>Enviar</button>
+            <button type="submit" className="btn btn-primario" disabled={sinMotor || !texto.trim()}>Enviar</button>
           )}
         </div>
       </form>

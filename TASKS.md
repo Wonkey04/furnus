@@ -14,7 +14,8 @@ Criterio de cierre: los 4 casos de prueba (ambiguo, error imposible, error con a
 ## Pendientes
 
 ## Pruebas con agente real (necesitan a Matías)
-- [ ] Probar el chat del visor con una clave real de Anthropic (hasta ahora solo contra un servidor falso local)
+- [ ] Probar el chat del visor con el Claude Code real de Matías (el motor pasó de la API con clave al CLI en modo headless; solo se probó con un `claude` falso, ver decisiones 40 a 47)
+- [ ] Resolver las dudas sobre términos de uso del CLI con suscripción (sección «Dudas sobre los términos de uso» de `docs/DECISIONS.md`)
 - [ ] Reiniciar el cliente MCP (carga la tool nueva) y repetir «poné el espesor en 30» con id explícito
 - [ ] Error con arreglo posible, sin que el agente lea el repo
 - [ ] Abrir un STEP en FreeCAD o Fusion y probar el STEP en pulgadas

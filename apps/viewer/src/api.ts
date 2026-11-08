@@ -47,6 +47,15 @@ export type ItemChat =
   | { tipo: "herramienta"; id: string; nombre: string; estado: "ejecutando" | "ok" | "error"; resumen?: string }
   | { tipo: "error"; mensaje: string };
 
+/** Estado del motor del chat (el Claude Code de la persona). `ayuda` trae los comandos cuando falta instalarlo o iniciar sesión. */
+export interface EstadoMotorChat {
+  disponible: boolean;
+  estado: "listo" | "sin_cli" | "sin_login" | "sin_motor";
+  modelo: string | null;
+  version?: string | null;
+  ayuda: { instalar: { etiqueta: string; comando: string }[]; login: string } | null;
+}
+
 export class ErrorApi extends Error {
   constructor(
     readonly codigo: string,
@@ -79,7 +88,7 @@ export const api = {
   irARevision: (id: string, destino: "deshacer" | "rehacer" | number) =>
     pedir<SalidaEjecucion>(`/api/piezas/${id}/revision`, { method: "POST", body: JSON.stringify({ destino }) }),
   agente: () => pedir<EstadoAgente>("/api/agente"),
-  chatEstado: () => pedir<{ disponible: boolean; modelo: string | null }>("/api/chat/estado"),
+  chatEstado: () => pedir<EstadoMotorChat>("/api/chat/estado"),
   chat: (id: string) => pedir<{ ocupado: boolean; transcripto: ItemChat[] }>(`/api/piezas/${id}/chat`),
   enviarChat: (id: string, texto: string) => pedir<{ ok: true }>(`/api/piezas/${id}/chat`, { method: "POST", body: JSON.stringify({ texto }) }),
   cancelarChat: (id: string) => pedir<{ ok: true }>(`/api/piezas/${id}/chat/cancelar`, { method: "POST", body: "{}" }),
