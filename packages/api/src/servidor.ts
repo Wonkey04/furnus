@@ -1,6 +1,6 @@
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { join } from "node:path";
+import { extname, join, normalize, sep } from "node:path";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import Fastify, { type FastifyInstance, type FastifyReply } from "fastify";
@@ -95,7 +95,21 @@ export interface OpcionesServidor {
   raiz?: string;
   /** Arma el agente del chat con las dependencias ya conectadas al hub de eventos. Sin esto no hay chat. */
   crearAgente?: (deps: Dependencias) => AgentePuerto;
+  /** Visor ya construido (paquete publicado): la API lo sirve en «/» para no necesitar un servidor aparte. */
+  visorDir?: string;
 }
+
+const TIPOS: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".woff": "font/woff",
+  ".ico": "image/x-icon",
+};
 
 export async function crearServidor(opciones: OpcionesServidor): Promise<FastifyInstance> {
   const hub = opciones.hub ?? new HubEventos();
@@ -276,6 +290,21 @@ export async function crearServidor(opciones: OpcionesServidor): Promise<Fastify
     const e = presencia.estado();
     socket.send(JSON.stringify({ tipo: "agente", ...e }));
   });
+
+  if (opciones.visorDir) {
+    const base = normalize(opciones.visorDir);
+    // Archivos del visor; cualquier otra ruta del navegador cae en index.html (es una SPA con rutas del lado del cliente).
+    app.setNotFoundHandler(async (req, reply) => {
+      const ruta = decodeURIComponent(req.url.split("?")[0] ?? "/");
+      if (req.method !== "GET" || ruta.startsWith("/api/") || ruta === "/ws") {
+        return reply.code(404).send({ error: { codigo: "NO_ENCONTRADO", mensaje: "Ruta inexistente." } });
+      }
+      const candidato = normalize(join(base, ruta));
+      let archivo = join(base, "index.html");
+      if (candidato.startsWith(base + sep) && (await stat(candidato).then((s) => s.isFile()).catch(() => false))) archivo = candidato;
+      return reply.type(TIPOS[extname(archivo)] ?? "application/octet-stream").send(createReadStream(archivo));
+    });
+  }
 
   return app;
 }

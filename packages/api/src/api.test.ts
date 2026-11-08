@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -33,7 +33,10 @@ beforeEach(async () => {
   app = await crearServidor({ deps: { kernel, repositorio: repo, reloj: new RelojFijo() }, hub, presencia });
 });
 
-afterEach(() => app.close());
+afterEach(async () => {
+  await app.close();
+  rmSync(carpeta, { recursive: true, force: true });
+});
 
 async function crear() {
   const r = await app.inject({ method: "POST", url: "/api/piezas", payload: { nombre: "Carcasa" } });
@@ -240,5 +243,27 @@ describe("chat con el agente embebido", () => {
     await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat`, payload: { texto: "uno" } });
     await chat.inject({ method: "POST", url: `/api/piezas/${id}/chat/cancelar` });
     expect(agente.cancelado).toBe(true);
+  });
+});
+
+describe("visor estático (paquete publicado)", () => {
+  it("sirve los archivos del visor, cae en index.html para rutas del cliente y no se sale de la carpeta", async () => {
+    const visor = join(carpeta, "visor");
+    mkdirSync(join(visor, "assets"), { recursive: true });
+    writeFileSync(join(visor, "index.html"), "<!doctype html><title>Furnus</title>");
+    writeFileSync(join(visor, "assets", "a.js"), "console.log(1)");
+    writeFileSync(join(carpeta, "secreto.txt"), "no");
+    const conVisor = await crearServidor({ deps: { kernel: new KernelFalso(() => CASOS_CONTRATO[0]!.respuestaFalsa), repositorio: new RepositorioEnMemoria(), reloj: new RelojFijo() }, visorDir: visor });
+    try {
+      const js = await conVisor.inject({ url: "/assets/a.js" });
+      expect(js.statusCode).toBe(200);
+      expect(js.headers["content-type"]).toContain("text/javascript");
+      expect((await conVisor.inject({ url: "/pieza/abc" })).body).toContain("<title>Furnus</title>");
+      expect((await conVisor.inject({ url: "/api/no-existe" })).statusCode).toBe(404);
+      const fuera = await conVisor.inject({ url: "/..%2fsecreto.txt" });
+      expect(fuera.body).not.toBe("no");
+    } finally {
+      await conVisor.close();
+    }
   });
 });

@@ -17,13 +17,17 @@ const puerto = Number(process.env.FURNUS_API_PORT ?? 4010);
 const kernel = new KernelHttp({ autoIniciar: true });
 const app = await crearServidor({
   raiz,
+  visorDir: process.env.FURNUS_VIEWER_DIR || undefined,
   crearAgente: () =>
     new AgenteCli({
       modelo: process.env.FURNUS_MODELO || undefined,
       // El mismo servidor MCP que usa un agente externo (ver .mcp.json).
       mcp: {
         command: process.execPath,
-        args: ["--import", pathToFileURL(resolve(raiz, "node_modules", "tsx", "dist", "esm", "index.mjs")).href, resolve(raiz, "packages", "mcp-server", "src", "main.ts")],
+        // En el paquete publicado el MCP es un solo archivo ya empaquetado (FURNUS_MCP_ENTRY); en el repo, los fuentes con tsx.
+        args: process.env.FURNUS_MCP_ENTRY
+          ? [process.env.FURNUS_MCP_ENTRY]
+          : ["--import", pathToFileURL(resolve(raiz, "node_modules", "tsx", "dist", "esm", "index.mjs")).href, resolve(raiz, "packages", "mcp-server", "src", "main.ts")],
         env: { FURNUS_API_PORT: String(puerto) },
       },
     }),

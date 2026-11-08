@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import type { KernelPort, PedidoKernel, RespuestaKernel } from "@furnus/app";
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+/** En el paquete publicado el kernel viaja dentro de runtime/; FURNUS_KERNEL_DIR lo indica. */
+const dirKernel = () => process.env.FURNUS_KERNEL_DIR ?? join(RAIZ, "services", "kernel");
 
 export interface OpcionesKernelHttp {
   url?: string;
@@ -17,8 +19,8 @@ function pythonDelKernel(): string {
   if (process.env.FURNUS_PYTHON) return process.env.FURNUS_PYTHON;
   const venv =
     process.platform === "win32"
-      ? join(RAIZ, "services", "kernel", ".venv", "Scripts", "python.exe")
-      : join(RAIZ, "services", "kernel", ".venv", "bin", "python");
+      ? join(dirKernel(), ".venv", "Scripts", "python.exe")
+      : join(dirKernel(), ".venv", "bin", "python");
   return existsSync(venv) ? venv : "python";
 }
 
@@ -53,7 +55,7 @@ export class KernelHttp implements KernelPort {
   private async levantar(): Promise<void> {
     const puerto = new URL(this.url).port;
     this.hijo = spawn(this.opciones.python ?? pythonDelKernel(), ["-m", "furnus_kernel"], {
-      cwd: join(RAIZ, "services", "kernel"),
+      cwd: dirKernel(),
       stdio: "ignore",
       windowsHide: true,
       env: { ...process.env, FURNUS_KERNEL_PORT: puerto, PYTHONIOENCODING: "utf-8" },
