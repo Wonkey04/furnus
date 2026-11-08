@@ -1,0 +1,28 @@
+{
+  "name": "furnus",
+  "version": "0.1.0",
+  "description": "Instalador y diagnóstico de Furnus: registra el servidor MCP en Claude Desktop y Claude Code, revisa el entorno y levanta el visor.",
+  "type": "module",
+  "bin": {
+    "furnus": "./dist/furnus.mjs"
+  },
+  "files": [
+    "dist",
+    "runtime",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": ["cad", "mcp", "build123d", "claude"],
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "node scripts/construir.mjs",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "prepack": "node scripts/construir.mjs --runtime"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

@@ -2,10 +2,10 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/node_modules/**", "**/dist/**", "services/**", "apps/viewer/dist/**"] },
+  { ignores: ["**/node_modules/**", "**/dist/**", "services/**", "apps/viewer/dist/**", "packages/cli/runtime/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  { files: ["scripts/**/*.mjs", "*.config.js"], languageOptions: { globals: { process: "readonly", console: "readonly", fetch: "readonly" } } },
+  { files: ["scripts/**/*.mjs", "packages/cli/scripts/**/*.mjs", "*.config.js"], languageOptions: { globals: { process: "readonly", console: "readonly", fetch: "readonly" } } },
   {
     files: ["packages/core/**/*.ts"],
     rules: {
