@@ -10,8 +10,9 @@ import {
   MedirPieza,
   Renderizar,
   type Dependencias,
+  type SalidaEjecucion,
 } from "@furnus/app";
-import { ErrorDeDominio, type ResultadoEjecucion } from "@furnus/core";
+import { ErrorDeDominio } from "@furnus/core";
 import type { EventoPieza } from "@furnus/app";
 
 export const EJEMPLO_SCRIPT = `from furnus import param, sel, validar
@@ -63,7 +64,7 @@ function texto(valor: unknown, esError = false): Contenido {
 }
 
 /** Una línea arriba de todo: el agente no tiene que recorrer el JSON para saber si salió bien. */
-function resumenEjecucion(r: ResultadoEjecucion): string {
+function resumenEjecucion(r: SalidaEjecucion): string {
   if (!r.ok) {
     const e = r.error;
     const donde = e?.linea ? ` (línea ${e.linea})` : "";
