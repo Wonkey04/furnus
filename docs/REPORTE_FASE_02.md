@@ -140,3 +140,23 @@ El criterio pide que la batería se resuelva sin ayuda **con al menos dos agente
 3. Decidir cuándo publicar en npm (y licencia y nombre).
 4. Decidir qué hace el agente ante un pedido imposible (preguntar, como hoy, o bajar el valor y avisar).
 5. Resolver las dudas de términos de uso del CLI con suscripción antes de mostrárselo a terceros (decisiones 40 a 47).
+
+## Ronda de pruebas manuales en el chat (agente limpio, Claude Code real)
+
+Matías las hizo a mano en el visor, con el modelo `claude-sonnet-5-5` y el Claude Code real de su máquina (sin clave de API). El agente es el del chat: solo tiene las tools de Furnus y se orienta por el prompt del chat. Una corrida por pedido.
+
+| Pedido | Resultado |
+|---|---|
+| Engranaje recto, 20 dientes, módulo 2, agujero central de 10 mm | 1 `ejecutar_script`, 1 `renderizar`. 44 × 44 × 10 mm, válido. |
+| Botella de 200 mm con cuello y rosca, pedida «al lado» del engranaje | No la hizo: dijo que una pieza admite un solo sólido y ofreció abrir una pieza nueva. Es el límite de una pieza por proyecto. |
+| Botella de 200 mm con cuello y rosca, en pieza nueva | 2 `ejecutar_script` seguidos, los dos terminaron bien (revisiones 1 y 2), más `renderizar`. 70 × 70 × 200 mm, válida. La rosca son anillos horizontales, no una hélice. |
+| Soporte en L con tres agujeros avellanados de 5 mm, parejos | 1 `ejecutar_script`, 1 `renderizar`. 50 × 80 × 50 mm, válido. |
+| Engranaje helicoidal | 1 `ejecutar_script`, 1 `renderizar`. 24 dientes, módulo 2, 52 × 52 × 20 mm, con chavetero, válido. Listó sus suposiciones. |
+
+Conclusiones, sin inflarlas:
+
+- Las piezas salieron válidas, al primer intento en casi todos los casos y con Sonnet.
+- **La autocorrección ante un error real sigue sin observarse.** Los dos `ejecutar_script` de la botella son dos corridas exitosas (iteración), no la corrección de un error. Queda como **no observado**: ni validado ni fallado.
+- La calidad estética es floja en algunas piezas (la rosca de la botella, un hombro cónico genérico). La forma depende solo del conocimiento del modelo.
+- El rechazo de «al lado» confirma el límite de una pieza por proyecto (decisión 12): un pedido natural como ese hoy no se puede (ver ideas en `DECISIONS.md`).
+- Sigue valiendo lo del criterio de salida: hay un solo agente probado (Claude Code, vía chat).
