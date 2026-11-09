@@ -17,7 +17,7 @@ Criterio de cierre: los 4 casos de prueba (ambiguo, error imposible, error con a
 - [x] Probar el chat del visor con el Claude Code real (2026-11-08, ver «Cierre» en `docs/REPORTE_FASE_02.md`): `cambiar_parametros` y suposiciones OK; la autocorrección ante un error quedó abierta
 - [ ] Resolver las dudas sobre términos de uso del CLI con suscripción (sección «Dudas sobre los términos de uso» de `docs/DECISIONS.md`)
 - [ ] Reiniciar el cliente MCP (carga la tool nueva) y repetir «poné el espesor en 30» con id explícito
-- [ ] Error con arreglo posible, sin que el agente lea el repo
+- [ ] Error con arreglo posible, sin que el agente lea el repo (ronda manual con Sonnet: sin errores; la autocorrección sigue **no observada**)
 - [ ] Abrir un STEP en FreeCAD o Fusion y probar el STEP en pulgadas
 - [ ] Repetir con un segundo agente (Cursor u otro): ahora se hace con `furnus init` + `furnus doctor` (Claude Desktop). Es lo que impide cerrar la fase 02
 
@@ -29,4 +29,14 @@ Criterio de cierre: los 4 casos de prueba (ambiguo, error imposible, error con a
 - [ ] Probar el segundo agente por MCP (Claude Desktop, Cursor) con los 4 casos
 - [ ] Prueba con una persona externa: anotar dónde se traba
 - [ ] Decidir cuándo publicar en npm (nombre `furnus` libre al 2026-11-08, licencia hoy `UNLICENSED`)
-- [ ] Decidir qué hace el agente ante un pedido imposible (decisión abierta en `docs/DECISIONS.md`)
+- [x] Decidir qué hace el agente ante un pedido imposible: preguntar (decisión 55)
+
+## Ronda de pruebas manuales en el chat (cubierta)
+- [x] Engranaje recto, botella (pieza nueva), soporte en L con avellanados y engranaje helicoidal, con Sonnet y Claude Code real: piezas válidas, detalle en `docs/REPORTE_FASE_02.md`
+- [x] Confirmado el límite de una pieza por proyecto («al lado» rechazado)
+
+## PENDIENTES VISIBLES (necesitan a Matías o a otra persona)
+- [ ] **Probar `furnus init` en la máquina de Matías con Claude Desktop** (segundo agente; sin esto la fase 02 no cierra)
+- [ ] **Probar con una persona externa** y anotar dónde se traba
+- [ ] **Probar con Codex** (tercer cliente, más adelante)
+- [ ] **Decidir cuándo publicar en npm** (nombre, licencia, reserva)
