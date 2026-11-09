@@ -38,6 +38,9 @@ Registro de lo que se decidió y por qué. Si querés desviarte de algo de acá,
 - Arquitectura (edificios) como segundo público.
 - Ensamblajes con restricciones.
 - Planos 2D a partir de la pieza.
+- Varias piezas o cuerpos por proyecto, y ensamblajes. Motivo: un pedido natural como «hacé otra pieza al lado» hoy no se puede (el agente lo rechazó en la ronda manual y ofreció una pieza nueva).
+- Mejor calidad de forma: ayudas en la librería `furnus` (perfiles de revolución, roscas helicoidales, nervaduras) y más ejemplos en las descripciones. Hoy la forma depende solo del conocimiento del modelo (rosca de botella como anillos, hombro cónico genérico).
+- El panel del chat muestra el markdown sin interpretar (asteriscos sueltos como `**texto**`).
 - Cuentas, login, proyectos y servidor (Supabase). Se movieron acá desde la antigua fase 03 (decisión 48).
 
 ## Decisiones de la fase 01 (tomadas por Claude Code, baratas de revertir; revisar)
@@ -169,3 +172,10 @@ Hecha el 2026-11-08 con el `claude` 2.1.319 de Matías, con sesión iniciada (`a
 - Que la pantalla «Conectar agente» del visor muestre `npx furnus init` en vez de la configuración manual.
 - Probar la variante de la Microsoft Store de Claude Desktop en una máquina real: la ruta (`%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude`) sale de lo conocido, no se verificó.
 - Varios tests de los paquetes (`furnus-contrato-*`, `furnus-repo-*`, `furnus-mcp-*`, `furnus-step-*`) dejan directorios temporales sin borrar: había cientos en `%TEMP%`. Solo se arregló el de la API.
+
+### Decisión de Matías sobre pedidos imposibles y estado del criterio de la fase 02
+
+| # | Decisión | Por qué |
+|---|---|---|
+| 55 | Ante un pedido que es imposible **tal como fue escrito**, el agente **pregunta** (dice el máximo posible y ofrece opciones) en vez de cambiarlo solo. La autocorrección automática aplica solo a errores con arreglo técnico que **no cambia lo pedido** (un nombre mal escrito, un argumento mal puesto). El prompt no se modificó en esta decisión: la regla ya describe ese comportamiento, aunque las dos frases chocan en la redacción (ver «Prueba real del chat») | Bajar un radio o una medida por cuenta del agente cambia lo que la persona pidió. Lo observado en el caso de los filetes de 15 mm coincide |
+| 56 | **El criterio de salida de la fase 02 (al menos dos agentes distintos) no cambia.** Hoy hay uno: Claude Code, vía el chat embebido. Falta probar Claude Desktop con `furnus init` y, más adelante, Codex. La fase 02 queda abierta hasta eso | Evita dar por cerrada una fase con un solo agente |
