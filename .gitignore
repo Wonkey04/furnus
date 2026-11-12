@@ -11,3 +11,6 @@ coverage/
 .api.log
 .tmp/
 packages/cli/runtime/
+
+# configuración local del cliente MCP (rutas absolutas de cada máquina)
+.mcp.json
